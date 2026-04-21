@@ -1,0 +1,13 @@
+Metadata-Version: 2.4
+Name: game
+Version: 0.1.0
+Summary: This is a descritption of my package
+Requires-Python: >=3.12
+Description-Content-Type: text/markdown
+Requires-Dist: numpy==2.4.2
+
+# Team-Blue-Game
+651-4284-00L AI-Assisted Coding and Collaborative Project Development FS2026, 
+
+This is the offical repository for our Project
+(if you wan to test stuff f.e with git, please use the repository of the lecture! a-purrfect-story) 
