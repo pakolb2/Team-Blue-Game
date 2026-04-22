@@ -389,7 +389,7 @@ Both variants can be selected from the lobby and play to completion.
 | 4 | Rules & scoring helpers | Phase 3 |Done by Paco|
 | 5 | Game engine | Phase 4 |Done by Paco|
 | 6 | Bots | Phase 5 |Done by Paco|
-| 7 | Room manager | Phase 5 ||
+| 7 | Room manager | Phase 5 |Done by Paco|
 | 8 | WebSocket layer | Phases 6 + 7 ||
 | 9 | Frontend UI | Phase 8 ||
 | 10 | Additional variants | Phase 9 ||
