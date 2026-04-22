@@ -1,0 +1,1 @@
+WebSocket event handlers — receives client events, delegates to the game engine or room manager, and broadcasts updated state back to all players in the room.

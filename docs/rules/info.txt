@@ -1,0 +1,1 @@
+Place variant rule documentation here — one file per variant, e.g. schieber.md, coiffeur.md, differenzler.md

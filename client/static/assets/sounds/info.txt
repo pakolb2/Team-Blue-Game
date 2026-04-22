@@ -1,0 +1,1 @@
+Optional sound effects — e.g. card_play.mp3, trick_win.mp3, game_over.mp3

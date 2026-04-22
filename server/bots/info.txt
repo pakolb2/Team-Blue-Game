@@ -1,0 +1,1 @@
+Bots implement the same BaseBot interface and are treated as regular players by the engine. Start with RandomBot, then improve RuleBasedBot with Jass heuristics.

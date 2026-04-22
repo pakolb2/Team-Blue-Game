@@ -1,0 +1,1 @@
+Single source of truth for all types (Pydantic models), constants, and WebSocket event names. Both the server modules and client JS reference the same event name strings via events.py.

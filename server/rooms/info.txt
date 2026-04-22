@@ -1,0 +1,1 @@
+Handles lobby and room lifecycle: creating rooms, players joining/leaving, and cleanup when a game ends.

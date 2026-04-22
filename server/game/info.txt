@@ -1,0 +1,1 @@
+Authoritative game engine — all game logic lives here on the server. The client only renders state it receives, never computes outcomes itself.

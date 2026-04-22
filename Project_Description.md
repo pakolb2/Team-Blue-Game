@@ -15,7 +15,7 @@
     We will build X for Y to enable Z under constraints C.
 
 
-The goal is to build a web-based implementation of the traditional Swiss card game Jass with all its different game modesfor players familiar with or new to the game, enabling local and LAN multiplayer (as well as solo play against bots), supporting multiple game variants and a built-in tutorial.
+The goal is to build a web-based implementation of the traditional Swiss card game Jass with all its different game modes for players familiar with or new to the game, enabling local and LAN multiplayer (as well as solo play against bots), supporting multiple game variants and a built-in tutorial.
 
 
 ## 2. Scope

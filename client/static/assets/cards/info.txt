@@ -1,0 +1,1 @@
+Place SVG or PNG card images here. Recommended naming: {rank}_{suit}.svg — e.g. A_Eichel.svg, 9_Schelle.svg
