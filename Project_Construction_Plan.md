@@ -57,7 +57,7 @@ jass/
 The following shows what each layer depends on. Build strictly top-to-bottom.
 
 ```
-shared/types.py & constants.py        ← foundation, no dependencies
+shared/types.py & constants.py        ← foundation, no dependencies (done)
         │
         ▼
 game/deck.py                          ← depends on types + constants
@@ -381,19 +381,19 @@ Both variants can be selected from the lobby and play to completion.
 
 ## Timeline Summary
 
-| Phase | What | Depends On |
-|-------|------|------------|
-| 1 | Types & constants | nothing |
-| 2 | Deck | Phase 1 |
-| 3 | Variant interface + Schieber | Phase 2 |
-| 4 | Rules & scoring helpers | Phase 3 |
-| 5 | Game engine | Phase 4 |
-| 6 | Bots | Phase 5 |
-| 7 | Room manager | Phase 5 |
-| 8 | WebSocket layer | Phases 6 + 7 |
-| 9 | Frontend UI | Phase 8 |
-| 10 | Additional variants | Phase 9 |
-| 11 | Polish & tutorial | Phase 10 |
+| Phase | What | Depends On | status |
+|-------|------|------------|--------|
+| 1 | Types & constants | nothing | Done by Paco|
+| 2 | Deck | Phase 1 | Done by Paco|
+| 3 | Variant interface + Schieber | Phase 2 ||
+| 4 | Rules & scoring helpers | Phase 3 ||
+| 5 | Game engine | Phase 4 ||
+| 6 | Bots | Phase 5 ||
+| 7 | Room manager | Phase 5 ||
+| 8 | WebSocket layer | Phases 6 + 7 ||
+| 9 | Frontend UI | Phase 8 ||
+| 10 | Additional variants | Phase 9 ||
+| 11 | Polish & tutorial | Phase 10 ||
 
 ---
 
