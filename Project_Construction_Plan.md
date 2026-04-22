@@ -386,9 +386,9 @@ Both variants can be selected from the lobby and play to completion.
 | 1 | Types & constants | nothing | Done by Paco|
 | 2 | Deck | Phase 1 | Done by Paco|
 | 3 | Variant interface + Schieber | Phase 2 | Done by Paco|
-| 4 | Rules & scoring helpers | Phase 3 ||
-| 5 | Game engine | Phase 4 ||
-| 6 | Bots | Phase 5 ||
+| 4 | Rules & scoring helpers | Phase 3 |Done by Paco|
+| 5 | Game engine | Phase 4 |Done by Paco|
+| 6 | Bots | Phase 5 |Done by Paco|
 | 7 | Room manager | Phase 5 ||
 | 8 | WebSocket layer | Phases 6 + 7 ||
 | 9 | Frontend UI | Phase 8 ||
