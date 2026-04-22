@@ -385,7 +385,7 @@ Both variants can be selected from the lobby and play to completion.
 |-------|------|------------|--------|
 | 1 | Types & constants | nothing | Done by Paco|
 | 2 | Deck | Phase 1 | Done by Paco|
-| 3 | Variant interface + Schieber | Phase 2 ||
+| 3 | Variant interface + Schieber | Phase 2 | Done by Paco|
 | 4 | Rules & scoring helpers | Phase 3 ||
 | 5 | Game engine | Phase 4 ||
 | 6 | Bots | Phase 5 ||
