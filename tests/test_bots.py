@@ -26,7 +26,7 @@ from server.shared.types import (
 from server.shared.constants import WINNING_SCORE
 from server.bots.base import BaseBot
 from server.bots.random_bot import RandomBot
-from tests.rule_based_bot import RuleBasedBot
+from server.bots.rule_based_bot import RuleBasedBot
 from server.game.engine import GameEngine
 from server.game.variants.schieber import Schieber
 

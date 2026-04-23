@@ -174,29 +174,29 @@ class TestI18nTranslationKeys:
         import os
         path = 'client/static/js/i18n.js'
         # Check in output directory
-        output_path = '/mnt/user-data/outputs/phase11/client/static/js/i18n.js'
+        output_path = 'client/static/js/i18n.js'
         assert os.path.exists(output_path), "i18n.js not found"
 
     def test_i18n_js_has_four_locales(self):
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/i18n.js').read()
+        content = open('client/static/js/i18n.js').read()
         for locale in ['en:', 'de:', 'fr:', 'it:']:
             assert locale in content, f"Locale '{locale}' not found in i18n.js"
 
     def test_i18n_js_has_trump_modes(self):
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/i18n.js').read()
+        content = open('client/static/js/i18n.js').read()
         for mode in ['trump_eichel', 'trump_schilte', 'trump_schelle',
                      'trump_rose', 'trump_obenabe', 'trump_undeufe']:
             assert mode in content, f"Trump mode key '{mode}' missing from i18n.js"
 
     def test_i18n_js_has_game_events(self):
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/i18n.js').read()
+        content = open('client/static/js/i18n.js').read()
         for key in ['game_started', 'trick_won', 'round_complete',
                     'victory', 'game_over', 'return_lobby']:
             assert key in content, f"Key '{key}' missing from i18n.js"
 
     def test_i18n_js_has_all_four_languages(self):
         """Verify DE, FR, IT sections contain the trump translation keys."""
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/i18n.js').read()
+        content = open('client/static/js/i18n.js').read()
         # German-specific strings
         assert 'Trumpf wählen' in content
         # French-specific strings (apostrophe is escaped as \' in JS)
@@ -205,13 +205,13 @@ class TestI18nTranslationKeys:
         assert 'Scegli la briscola' in content
 
     def test_i18n_js_has_error_keys(self):
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/i18n.js').read()
+        content = open('client/static/js/i18n.js').read()
         for key in ['err_no_room', 'err_not_turn', 'err_illegal', 'err_internal']:
             assert key in content
 
     def test_i18n_js_has_placeholder_substitution_syntax(self):
         """Keys with variables should use {varname} syntax."""
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/i18n.js').read()
+        content = open('client/static/js/i18n.js').read()
         # These keys should contain {player}, {pts}, {n} etc.
         assert '{player}' in content
         assert '{pts}' in content
@@ -221,14 +221,14 @@ class TestI18nTranslationKeys:
 class TestSoundsJs:
     def test_sounds_js_exists(self):
         import os
-        assert os.path.exists('/mnt/user-data/outputs/phase11/client/static/js/sounds.js')
+        assert os.path.exists('client/static/js/sounds.js')
 
     def test_sounds_js_has_play_sound(self):
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/sounds.js').read()
+        content = open('client/static/js/sounds.js').read()
         assert 'function playSound' in content
 
     def test_sounds_js_has_all_sound_names(self):
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/sounds.js').read()
+        content = open('client/static/js/sounds.js').read()
         for sound in ['card_hover', 'card_select', 'card_play',
                       'trick_win', 'trump_chosen', 'game_over_win',
                       'game_over_loss', 'error', 'round_end']:
@@ -236,7 +236,7 @@ class TestSoundsJs:
                 f"Sound '{sound}' not found in sounds.js"
 
     def test_sounds_js_has_enable_disable(self):
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/sounds.js').read()
+        content = open('client/static/js/sounds.js').read()
         assert 'setSoundEnabled' in content
         assert 'isSoundEnabled' in content
 
@@ -244,17 +244,17 @@ class TestSoundsJs:
 class TestAnimationsJs:
     def test_animations_js_exists(self):
         import os
-        assert os.path.exists('/mnt/user-data/outputs/phase11/client/static/js/animations.js')
+        assert os.path.exists('client/static/js/animations.js')
 
     def test_animations_js_has_all_functions(self):
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/animations.js').read()
+        content = open('client/static/js/animations.js').read()
         for fn in ['animateDeal', 'animateCardPlay', 'animateTrickCollect',
                    'animateScoreReveal', 'animateShake', 'animateWinnerPulse',
                    'animateGameOver']:
             assert f'function {fn}' in content, f"Function '{fn}' not found"
 
     def test_animations_js_uses_web_animations_api(self):
-        content = open('/mnt/user-data/outputs/phase11/client/static/js/animations.js').read()
+        content = open('client/static/js/animations.js').read()
         assert '.animate(' in content
 
 
@@ -262,42 +262,42 @@ class TestPhase11Css:
     def test_css_additions_exist(self):
         import os
         assert os.path.exists(
-            '/mnt/user-data/outputs/phase11/client/static/css/phase11-additions.css'
+            'client/static/css/phase11-additions.css'
         )
 
     def test_css_has_lang_switcher(self):
         content = open(
-            '/mnt/user-data/outputs/phase11/client/static/css/phase11-additions.css'
+            'client/static/css/phase11-additions.css'
         ).read()
         assert '.lang-switcher' in content
         assert '.lang-btn' in content
 
     def test_css_has_mobile_breakpoint(self):
         content = open(
-            '/mnt/user-data/outputs/phase11/client/static/css/phase11-additions.css'
+            'client/static/css/phase11-additions.css'
         ).read()
         assert 'max-width: 600px' in content
 
     def test_css_has_reduced_motion(self):
         content = open(
-            '/mnt/user-data/outputs/phase11/client/static/css/phase11-additions.css'
+            'client/static/css/phase11-additions.css'
         ).read()
         assert 'prefers-reduced-motion' in content
 
     def test_css_has_settings_panel(self):
         content = open(
-            '/mnt/user-data/outputs/phase11/client/static/css/phase11-additions.css'
+            'client/static/css/phase11-additions.css'
         ).read()
         assert '.settings-panel' in content
 
     def test_css_has_differenzler_prediction(self):
         content = open(
-            '/mnt/user-data/outputs/phase11/client/static/css/phase11-additions.css'
+            'client/static/css/phase11-additions.css'
         ).read()
         assert '.prediction-box' in content or '.prediction-overlay' in content
 
     def test_css_has_coiffeur_modes(self):
         content = open(
-            '/mnt/user-data/outputs/phase11/client/static/css/phase11-additions.css'
+            'client/static/css/phase11-additions.css'
         ).read()
         assert '.coiffeur-mode-chip' in content
