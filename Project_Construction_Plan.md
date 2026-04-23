@@ -383,14 +383,14 @@ Both variants can be selected from the lobby and play to completion.
 
 | Phase | What | Depends On | status |
 |-------|------|------------|--------|
-| 1 | Types & constants | nothing | Done by Paco|
-| 2 | Deck | Phase 1 | Done by Paco|
-| 3 | Variant interface + Schieber | Phase 2 | Done by Paco|
-| 4 | Rules & scoring helpers | Phase 3 |Done by Paco|
-| 5 | Game engine | Phase 4 |Done by Paco|
-| 6 | Bots | Phase 5 |Done by Paco|
-| 7 | Room manager | Phase 5 |Done by Paco|
-| 8 | WebSocket layer | Phases 6 + 7 ||
+| 1 | Types & constants | nothing | Done|
+| 2 | Deck | Phase 1 | Done|
+| 3 | Variant interface + Schieber | Phase 2 | Done |
+| 4 | Rules & scoring helpers | Phase 3 |Done|
+| 5 | Game engine | Phase 4 |Done|
+| 6 | Bots | Phase 5 |Done|
+| 7 | Room manager | Phase 5 |Done|
+| 8 | WebSocket layer | Phases 6 + 7 |Done|
 | 9 | Frontend UI | Phase 8 ||
 | 10 | Additional variants | Phase 9 ||
 | 11 | Polish & tutorial | Phase 10 ||
