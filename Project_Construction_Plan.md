@@ -415,7 +415,7 @@ Both variants can be selected from the lobby and play to completion.
 | 8 | WebSocket layer | Phases 6 + 7 |Done|
 | 9 | Frontend UI | Phase 8 |Done|
 | 10 | Additional variants | Phase 9 |Done|
-| 11 | Polish & tutorial | Phase 10 ||
+| 11 | Polish & tutorial | Phase 10 |Done|
 
 ---
 

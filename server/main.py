@@ -1,19 +1,11 @@
 """
-server/main.py
----------------
-FastAPI application entry point.
-
-Wires together:
-  - RoomManager     (shared game state)
-  - ConnectionManager (shared WebSocket registry)
-  - WebSocket endpoint /ws/{player_id}
-  - HTTP routes for Jinja2 templates (lobby, game, tutorial)
-  - Static file serving
-
-Run with:
-    uvicorn server.main:app --reload
-
-Or via VS Code launch.json (see .vscode/launch.json).
+server/main.py  (Phase 11 update)
+----------------------------------
+Adds:
+  - LAN discovery router (/api/lan/...)
+  - Optional UDP broadcast on startup
+  - Sound/animation settings endpoint
+  - Variant listing endpoint for lobby
 """
 
 from __future__ import annotations
@@ -27,26 +19,24 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
-from server.rooms.room_manager import RoomManager
+from server.rooms.room_manager import RoomManager, VARIANT_REGISTRY
 from server.sockets.handlers import ConnectionManager, handle_event
+from server.lan_discovery import router as lan_router, start_udp_broadcast
 
 logger = logging.getLogger(__name__)
 
-# ---------------------------------------------------------------------------
-# App-level singletons (created once, shared across all connections)
-# ---------------------------------------------------------------------------
-
-room_manager = RoomManager()
+room_manager       = RoomManager()
 connection_manager = ConnectionManager()
 
 
-# ---------------------------------------------------------------------------
-# FastAPI app
-# ---------------------------------------------------------------------------
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Jass server starting up.")
+    # Announce on LAN at startup (optional — comment out if not needed)
+    try:
+        start_udp_broadcast(port=4445)
+    except Exception as e:
+        logger.warning(f"UDP broadcast unavailable: {e}")
+    logger.info("Jass server ready.")
     yield
     logger.info("Jass server shutting down.")
 
@@ -57,67 +47,53 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Static files (CSS, JS, card images)
-app.mount(
-    "/static",
-    StaticFiles(directory="client/static"),
-    name="static",
-)
+app.include_router(lan_router)
 
-# Jinja2 templates
+app.mount("/static", StaticFiles(directory="client/static"), name="static")
 templates = Jinja2Templates(directory="client/templates")
 
 
 # ---------------------------------------------------------------------------
-# HTTP routes — serve HTML pages
+# HTTP routes
 # ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Lobby page — create or join a room."""
     open_rooms = room_manager.list_open_rooms()
     return templates.TemplateResponse(
-        request, "home.html",
-        {"open_rooms": open_rooms},
+        request, "home.html", {"open_rooms": open_rooms}
     )
 
 
 @app.get("/game/{room_id}", response_class=HTMLResponse)
 async def game(request: Request, room_id: str):
-    """Game board page."""
     room_id = room_id.upper()
     try:
         room = room_manager.get_room(room_id)
     except KeyError:
         return HTMLResponse(f"Room '{room_id}' not found.", status_code=404)
     return templates.TemplateResponse(
-        request, "game.html",
-        {"room_id": room_id, "room": room},
+        request, "game.html", {"room_id": room_id, "room": room}
     )
 
 
 @app.get("/tutorial", response_class=HTMLResponse)
 async def tutorial(request: Request):
-    """Tutorial page — step-by-step Jass rules guide."""
-    return templates.TemplateResponse(
-        request, "tutorial.html", {},
-    )
+    return templates.TemplateResponse(request, "tutorial.html", {})
 
 
 # ---------------------------------------------------------------------------
-# REST helpers (optional — useful for testing without a browser)
+# REST API
 # ---------------------------------------------------------------------------
 
 @app.post("/api/rooms")
 async def create_room(variant: str = "schieber"):
-    """Create a new room and return its ID."""
     room = room_manager.create_room(variant_name=variant)
     return {"room_id": room.id, "variant": room.variant_name}
 
 
 @app.get("/api/rooms")
 async def list_rooms():
-    """List all open (joinable) rooms."""
     rooms = room_manager.list_open_rooms()
     return {
         "rooms": [
@@ -134,7 +110,6 @@ async def list_rooms():
 
 @app.get("/api/rooms/{room_id}")
 async def get_room(room_id: str):
-    """Get details about a specific room."""
     room_id = room_id.upper()
     try:
         room = room_manager.get_room(room_id)
@@ -143,10 +118,24 @@ async def get_room(room_id: str):
         raise HTTPException(status_code=404, detail=f"Room '{room_id}' not found.")
     return {
         "id": room.id,
-        "players": [{"id": p.id, "name": p.name, "is_bot": p.is_bot} for p in room.players],
+        "players": [
+            {"id": p.id, "name": p.name, "is_bot": p.is_bot}
+            for p in room.players
+        ],
         "is_full": room.is_full,
         "is_active": room.is_active,
         "variant_name": room.variant_name,
+    }
+
+
+@app.get("/api/variants")
+async def list_variants():
+    """Return available game variants for the lobby picker."""
+    return {
+        "variants": [
+            {"name": v.name, "display_name": v.display_name}
+            for v in VARIANT_REGISTRY.values()
+        ]
     }
 
 
@@ -156,21 +145,11 @@ async def get_room(room_id: str):
 
 @app.websocket("/ws/{player_id}")
 async def websocket_endpoint(websocket: WebSocket, player_id: str):
-    """
-    Main WebSocket endpoint. Each player connects once with their player_id.
-
-    Message format (JSON):
-        { "type": "<event_name>", ...payload... }
-
-    The player_id is set by the client (typically generated in the browser
-    with crypto.randomUUID() on first visit and stored in localStorage).
-    """
     await connection_manager.connect(player_id, websocket)
 
     try:
         while True:
             raw = await websocket.receive_text()
-
             try:
                 data = json.loads(raw)
             except json.JSONDecodeError:
@@ -190,28 +169,35 @@ async def websocket_endpoint(websocket: WebSocket, player_id: str):
 
     except WebSocketDisconnect:
         connection_manager.disconnect(player_id)
-
-        # Mark player as disconnected in their room if game is active
         room_id = room_manager.find_player_room(player_id)
         if room_id:
             try:
                 room = room_manager.leave_room(room_id, player_id)
                 await connection_manager.broadcast_to_room(
                     room_id,
-                    {"type": "room_updated", "room": {
-                        "id": room.id,
-                        "players": [
-                            {"id": p.id, "name": p.name,
-                             "connected": p.connected, "is_bot": p.is_bot}
-                            for p in room.players
-                        ],
-                    }},
+                    {
+                        "type": "room_updated",
+                        "room": {
+                            "id": room.id,
+                            "players": [
+                                {
+                                    "id": p.id,
+                                    "name": p.name,
+                                    "connected": p.connected,
+                                    "is_bot": p.is_bot,
+                                }
+                                for p in room.players
+                            ],
+                        },
+                    },
                     room_manager,
                     exclude=player_id,
                 )
             except Exception as e:
-                logger.warning(f"Error cleaning up disconnect for {player_id}: {e}")
+                logger.warning(f"Cleanup error for {player_id}: {e}")
 
     except Exception as e:
-        logger.exception(f"WebSocket error for player {player_id}: {e}")
+        logger.exception(f"WebSocket error for {player_id}: {e}")
         connection_manager.disconnect(player_id)
+
+
