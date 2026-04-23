@@ -1,0 +1,360 @@
+/* ==========================================================================
+   phase11-additions.css
+   =====================
+   Append these rules to the bottom of main.css.
+   Adds: language switcher, mobile portrait layout, settings panel,
+   LAN discovery section, animation polish, Differenzler prediction UI.
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Language switcher
+   -------------------------------------------------------------------------- */
+.lang-switcher {
+  display: flex;
+  align-items: center;
+  gap: .15rem;
+}
+
+.lang-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: .7rem;
+  font-weight: 500;
+  color: rgba(255,255,255,.35);
+  padding: .2rem .35rem;
+  border-radius: var(--radius-sm);
+  transition: color .15s, background .15s;
+  letter-spacing: .06em;
+}
+.lang-btn:hover  { color: var(--cream-200); background: rgba(255,255,255,.07); }
+.lang-btn.lang-active {
+  color: var(--gold-accent);
+  background: rgba(232,184,75,.1);
+}
+
+/* --------------------------------------------------------------------------
+   Settings panel (gear icon → slide-in)
+   -------------------------------------------------------------------------- */
+.settings-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: rgba(255,255,255,.4);
+  font-size: 1.1rem;
+  padding: .3rem;
+  border-radius: var(--radius-sm);
+  transition: color .15s;
+}
+.settings-toggle:hover { color: var(--cream-200); }
+
+.settings-panel {
+  position: fixed;
+  top: 0; right: 0;
+  height: 100%;
+  width: min(320px, 90vw);
+  background: var(--felt-900);
+  border-left: 1px solid rgba(255,255,255,.08);
+  box-shadow: -8px 0 32px rgba(0,0,0,.6);
+  z-index: 300;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+}
+.settings-panel.open {
+  transform: translateX(0);
+}
+
+.settings-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--gold-accent);
+  padding-bottom: .75rem;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.settings-label {
+  font-family: var(--font-body);
+  font-size: .95rem;
+  color: var(--cream-200);
+}
+
+/* Toggle switch */
+.toggle {
+  position: relative;
+  width: 40px; height: 22px;
+  cursor: pointer;
+}
+.toggle input { display: none; }
+.toggle-track {
+  position: absolute;
+  inset: 0;
+  background: rgba(255,255,255,.15);
+  border-radius: 99px;
+  transition: background .2s;
+}
+.toggle input:checked + .toggle-track { background: var(--green-accent); }
+.toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform .2s;
+  pointer-events: none;
+}
+.toggle input:checked ~ .toggle-thumb { transform: translateX(18px); }
+
+/* Volume slider */
+.volume-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 120px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,.2);
+  outline: none;
+  cursor: pointer;
+}
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--gold-accent);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   LAN discovery section (in lobby)
+   -------------------------------------------------------------------------- */
+.lan-section {
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid rgba(255,255,255,.08);
+}
+
+.lan-title {
+  font-family: var(--font-display);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--gold-accent);
+  margin-bottom: .75rem;
+}
+
+.lan-server-list {
+  display: flex;
+  flex-direction: column;
+  gap: .5rem;
+}
+
+.lan-server-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .6rem .9rem;
+  background: rgba(0,0,0,.2);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: var(--radius-md);
+}
+
+.lan-server-ip {
+  font-family: var(--font-mono);
+  font-size: .85rem;
+  color: var(--green-accent);
+}
+
+.lan-server-name {
+  font-size: .85rem;
+  color: var(--cream-300);
+}
+
+.lan-empty {
+  font-style: italic;
+  color: var(--cream-400);
+  font-size: .85rem;
+}
+
+/* --------------------------------------------------------------------------
+   Differenzler — prediction input UI
+   -------------------------------------------------------------------------- */
+.prediction-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(6px);
+  animation: fadeIn .2s ease;
+}
+
+.prediction-box {
+  background: var(--felt-700);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  width: min(380px, 92vw);
+  text-align: center;
+  box-shadow: 0 24px 80px rgba(0,0,0,.7);
+  animation: slideUp .25s cubic-bezier(.34,1.56,.64,1);
+}
+
+.prediction-title {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--gold-accent);
+  margin-bottom: .4rem;
+}
+
+.prediction-hint {
+  font-style: italic;
+  color: var(--cream-400);
+  font-size: .9rem;
+  margin-bottom: 1.25rem;
+}
+
+.prediction-input {
+  width: 120px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--cream-100);
+  padding: .5rem;
+  margin-bottom: 1.25rem;
+}
+.prediction-input::-webkit-inner-spin-button { display: none; }
+
+.prediction-range-hint {
+  font-size: .8rem;
+  color: var(--cream-400);
+  margin-bottom: 1rem;
+}
+
+/* --------------------------------------------------------------------------
+   Coiffeur — available modes display
+   -------------------------------------------------------------------------- */
+.coiffeur-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+  margin-top: .5rem;
+}
+
+.coiffeur-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .3rem;
+  padding: .25rem .6rem;
+  border-radius: 99px;
+  font-size: .75rem;
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: .04em;
+  border: 1px solid;
+}
+
+.coiffeur-mode-chip.available {
+  background: rgba(61,187,110,.1);
+  border-color: rgba(61,187,110,.3);
+  color: var(--green-accent);
+}
+
+.coiffeur-mode-chip.used {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.1);
+  color: rgba(255,255,255,.3);
+  text-decoration: line-through;
+}
+
+/* --------------------------------------------------------------------------
+   Mobile portrait layout
+   -------------------------------------------------------------------------- */
+@media (max-width: 600px) {
+  /* Stack the game into a vertical single-column layout */
+  .game-root {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto 1fr auto !important;
+    height: auto !important;
+    min-height: 100dvh;
+  }
+
+  .game-sidebar-left {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    display: flex !important;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    padding: .5rem .75rem;
+    gap: .75rem;
+    overflow-x: auto;
+  }
+
+  .game-sidebar-left .panel { min-width: 120px; flex: 1; }
+
+  .game-sidebar-right { display: none !important; }
+
+  .game-main {
+    grid-column: 1 !important;
+    grid-row: 2 !important;
+    padding: .5rem;
+  }
+
+  .game-bottom {
+    grid-column: 1 !important;
+    grid-row: 3 !important;
+  }
+
+  /* Larger touch targets for cards on mobile */
+  .card { min-width: 44px; min-height: 64px; }
+  .hand .card { margin-left: -18px; }
+
+  /* Trick area shrinks for mobile */
+  .trick-area { width: 200px; height: 150px; }
+
+  /* Hide non-essential sidebars */
+  .seat-left, .seat-right { display: none; }
+
+  /* Opponent mini-hands — horizontal on mobile */
+  .mini-hand-v { flex-direction: row; }
+  .mini-hand-v .card-back {
+    margin-top: 0;
+    margin-left: -14px;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Reduced motion preference
+   -------------------------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   High contrast mode tweaks
+   -------------------------------------------------------------------------- */
+@media (forced-colors: active) {
+  .card { border: 2px solid ButtonText; }
+  .btn  { border: 2px solid ButtonText; }
+}
