@@ -294,9 +294,19 @@ Multiple rooms can be created, players can join/leave, and bots fill empty seats
 - Serve Jinja2 templates at `/`, `/game/{room_id}`, `/tutorial`
 - Register handlers
 
+
+
 ### Done when
 
 Two browser tabs can connect, join the same room, and play a complete game against bots via WebSocket messages logged to the console.
+
+The server is now fully functional. 
+
+Run it with  
+
+        uvicorn server.main:app --reload 
+
+and it will accept WebSocket connections.
 
 ---
 
@@ -342,6 +352,18 @@ Build the UI after the WebSocket layer is stable — the event contract is the A
 ### Done when
 
 A human player can open the browser, create a room, play a complete Schieber game against 3 bots, and see the final scores.
+
+--> maybe take all the files out of the folders to work
+
+run 
+
+        uvicorn server.main:app --reload
+        
+open 
+
+        http://localhost:8000 
+        
+and you have a fully playable game. 
 
 ---
 
@@ -391,8 +413,8 @@ Both variants can be selected from the lobby and play to completion.
 | 6 | Bots | Phase 5 |Done|
 | 7 | Room manager | Phase 5 |Done|
 | 8 | WebSocket layer | Phases 6 + 7 |Done|
-| 9 | Frontend UI | Phase 8 ||
-| 10 | Additional variants | Phase 9 ||
+| 9 | Frontend UI | Phase 8 |Done|
+| 10 | Additional variants | Phase 9 |Done|
 | 11 | Polish & tutorial | Phase 10 ||
 
 ---

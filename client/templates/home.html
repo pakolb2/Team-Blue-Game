@@ -1,7 +1,120 @@
 {% extends "base.html" %}
-{% block title %}Jass — Home{% endblock %}
+{% block title %}Jass — Lobby{% endblock %}
+
 {% block content %}
-<h1>Welcome to Jass</h1>
-<a href="/game">Play</a>
-<a href="/tutorial">Tutorial</a>
+<div class="lobby-hero">
+  <h1 class="lobby-title">Jass</h1>
+  <p class="lobby-subtitle">The Swiss card game — trick-taking at its finest.</p>
+</div>
+
+<div class="lobby-grid">
+
+  <!-- Create / Join panel -->
+  <div class="panel">
+    <div class="panel-title">Start Playing</div>
+
+    <!-- Set name -->
+    <div class="form-group">
+      <label class="label" for="player-name">Your Name</label>
+      <input class="input" id="player-name" type="text"
+             placeholder="Enter your name…" maxlength="20" />
+    </div>
+
+    <!-- Create a new room -->
+    <button class="btn btn-primary" style="width:100%;margin-bottom:.75rem"
+            onclick="handleCreateRoom()">
+      Create New Room
+    </button>
+
+    <div style="text-align:center;color:var(--cream-400);font-size:.85rem;
+                margin:.5rem 0">— or —</div>
+
+    <!-- Join existing room by code -->
+    <div class="form-group" style="margin-top:.75rem">
+      <label class="label" for="room-code">Room Code</label>
+      <div style="display:flex;gap:.5rem">
+        <input class="input" id="room-code" type="text"
+               placeholder="e.g. A3B9C1" maxlength="8"
+               style="text-transform:uppercase;letter-spacing:.1em"
+               onkeydown="if(event.key==='Enter') handleJoinRoom()" />
+        <button class="btn btn-secondary" onclick="handleJoinRoom()">Join</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Open rooms list -->
+  <div class="panel">
+    <div class="panel-title">Open Rooms</div>
+    <div class="room-list" id="room-list">
+      {% if open_rooms %}
+        {% for room in open_rooms %}
+        <div class="room-item">
+          <span class="room-id">{{ room.id }}</span>
+          <span class="room-meta">{{ room.players|length }}/{{ room.max_players }} players</span>
+          <button class="btn btn-secondary btn-sm"
+                  onclick="joinRoom('{{ room.id }}')">Join</button>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="room-empty">No open rooms yet.<br>Create one above!</div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Restore saved name
+  const nameInput = document.getElementById('player-name');
+  const savedName = localStorage.getItem('jass_player_name');
+  if (savedName) nameInput.value = savedName;
+
+  function getPlayerId() {
+    let id = localStorage.getItem('jass_player_id');
+    if (!id) {
+      id = 'p_' + Math.random().toString(36).slice(2, 14);
+      localStorage.setItem('jass_player_id', id);
+    }
+    return id;
+  }
+
+  function saveName() {
+    const name = nameInput.value.trim() || 'Player';
+    localStorage.setItem('jass_player_name', name);
+    return name;
+  }
+
+  async function handleCreateRoom() {
+    saveName();
+    try {
+      const resp = await fetch('/api/rooms', { method: 'POST' });
+      const data = await resp.json();
+      joinRoom(data.room_id);
+    } catch (e) {
+      showLobbyError('Failed to create room. Is the server running?');
+    }
+  }
+
+  function handleJoinRoom() {
+    const code = document.getElementById('room-code').value.trim().toUpperCase();
+    if (!code) { showLobbyError('Please enter a room code.'); return; }
+    joinRoom(code);
+  }
+
+  function joinRoom(roomId) {
+    saveName();
+    localStorage.setItem('jass_room_id', roomId);
+    location.href = `/game/${roomId}`;
+  }
+
+  function showLobbyError(msg) {
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-error';
+    toast.textContent = msg;
+    document.getElementById('toasts').appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+</script>
 {% endblock %}

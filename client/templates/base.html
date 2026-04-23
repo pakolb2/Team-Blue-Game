@@ -4,10 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Jass{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="/static/css/main.css" />
+  {% block head %}{% endblock %}
 </head>
 <body>
-  {% block content %}{% endblock %}
+  <div class="page">
+    <header class="site-header">
+      <a href="/" class="logo" style="text-decoration:none">
+        Jass <span>Swiss Card Game</span>
+      </a>
+      <nav style="display:flex;gap:.75rem">
+        <a href="/" class="btn btn-secondary btn-sm">Lobby</a>
+        <a href="/tutorial" class="btn btn-secondary btn-sm">Tutorial</a>
+      </nav>
+    </header>
+    {% block content %}{% endblock %}
+  </div>
+
+  <!-- Toast container -->
+  <div class="toasts" id="toasts"></div>
+
   {% block scripts %}{% endblock %}
 </body>
 </html>

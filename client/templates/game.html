@@ -1,9 +1,342 @@
 {% extends "base.html" %}
-{% block title %}Jass — Game{% endblock %}
-{% block content %}
-<div id="game-board"></div>
+{% block title %}Jass — Room {{ room_id }}{% endblock %}
+
+{% block head %}
+<style>
+  /* Full-screen game layout — override page container */
+  body { overflow: hidden; }
+  .page { max-width: 100%; padding: 0; }
+  .site-header { padding: .75rem 1.25rem; margin-bottom: 0; }
+
+  .game-root {
+    display: grid;
+    grid-template-columns: 220px 1fr 220px;
+    grid-template-rows: 1fr auto;
+    height: calc(100vh - 58px);
+    gap: 0;
+  }
+
+  .game-sidebar-left {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    padding: 1rem;
+    border-right: 1px solid rgba(255,255,255,.06);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    overflow-y: auto;
+  }
+
+  .game-sidebar-right {
+    grid-column: 3;
+    grid-row: 1 / 3;
+    padding: 1rem;
+    border-left: 1px solid rgba(255,255,255,.06);
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .game-main {
+    grid-column: 2;
+    grid-row: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: .75rem 1rem;
+    position: relative;
+  }
+
+  .game-bottom {
+    grid-column: 2;
+    grid-row: 2;
+    padding: .5rem 1rem 1rem;
+    border-top: 1px solid rgba(255,255,255,.06);
+  }
+
+  /* Waiting room overlay (shown before game starts) */
+  #waiting-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--felt-800);
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  @media (max-width: 900px) {
+    .game-root {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto 1fr auto auto;
+    }
+    .game-sidebar-left, .game-sidebar-right { display: none; }
+    .game-main { grid-column: 1; }
+    .game-bottom { grid-column: 1; }
+  }
+</style>
 {% endblock %}
+
+{% block content %}
+
+<!-- ── Waiting room overlay (hidden once game starts) ───────────────────── -->
+<div id="waiting-overlay">
+  <div class="waiting-room">
+    <h2 style="font-family:var(--font-display);font-size:1.4rem;
+               color:var(--cream-300);margin-bottom:.5rem">
+      Room Code
+    </h2>
+    <div class="waiting-room-id" id="room-code-display">{{ room_id }}</div>
+
+    <div class="player-list" id="player-list">
+      <!-- Populated by JS -->
+      <div class="player-row seat-empty">
+        <div class="player-avatar">?</div>
+        <div class="player-name-row" style="color:var(--cream-400);font-style:italic">
+          Waiting for players…
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap">
+      <button class="btn btn-secondary" onclick="copyRoomCode()">
+        Copy Code
+      </button>
+      <button class="btn btn-primary" id="start-btn" onclick="startGame()" disabled>
+        Start Game
+      </button>
+    </div>
+
+    <p style="margin-top:1.25rem;font-size:.85rem;color:var(--cream-400);
+              text-align:center;font-style:italic">
+      Share the room code with friends, or start with bots filling empty seats.
+    </p>
+  </div>
+</div>
+
+<!-- ── Game board (shown once game starts) ─────────────────────────────── -->
+<div class="game-root" id="game-root" style="display:none">
+
+  <!-- Left sidebar: scoreboard + trump + round -->
+  <aside class="game-sidebar-left">
+    <div class="panel">
+      <div class="panel-title">Score</div>
+      <div class="scoreboard" id="scoreboard">
+        <!-- Populated by game.js -->
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title">Trump</div>
+      <div class="trump-display" id="trump-display">
+        <span class="trump-badge" style="opacity:.4">—</span>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1">
+      <div class="panel-title">Tricks</div>
+      <div id="tricks-count" style="font-family:var(--font-display);
+           font-size:1.75rem;font-weight:700;color:var(--cream-100);
+           text-align:center;padding:.5rem 0">
+        0 / 9
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main area: opponent seats + trick + my seat label -->
+  <main class="game-main">
+
+    <!-- Top opponent -->
+    <div class="seat seat-top" id="seat-top"></div>
+
+    <!-- Middle row: left opp + trick + right opp -->
+    <div style="display:flex;align-items:center;gap:1rem;width:100%">
+      <div class="seat seat-left" id="seat-left"></div>
+
+      <!-- Trick area -->
+      <div style="flex:1;display:flex;justify-content:center">
+        <div class="trick-area" id="trick-area">
+          <!-- Trick cards rendered by game.js -->
+        </div>
+      </div>
+
+      <div class="seat seat-right" id="seat-right"></div>
+    </div>
+
+    <!-- My name label -->
+    <div class="seat" id="my-seat-label">
+      <div class="seat-indicator" id="my-indicator"></div>
+      <div class="seat-name" id="my-name">You</div>
+    </div>
+
+  </main>
+
+  <!-- Right sidebar: status + log -->
+  <aside class="game-sidebar-right">
+    <div class="panel">
+      <div class="panel-title">Status</div>
+      <div class="status-bar" id="status-bar">Connecting…</div>
+    </div>
+
+    <div class="panel" style="flex:1;overflow-y:auto">
+      <div class="panel-title">Log</div>
+      <div id="game-log" style="font-size:.8rem;color:var(--cream-400);
+           line-height:1.6;font-family:var(--font-mono)">
+        <!-- Events appended by JS -->
+      </div>
+    </div>
+  </aside>
+
+  <!-- Bottom: my hand -->
+  <div class="game-bottom">
+    <div class="hand my-hand" id="my-hand">
+      <!-- Cards rendered by game.js -->
+    </div>
+  </div>
+
+</div>
+
+{% endblock %}
+
 {% block scripts %}
 <script src="/static/js/socket.js"></script>
 <script src="/static/js/game.js"></script>
+<script>
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  const ROOM_ID    = '{{ room_id }}';
+  const PLAYER_ID  = getOrCreatePlayerId();
+  const PLAYER_NAME = getPlayerName();
+
+  // Show name in "You" label
+  document.getElementById('my-name').textContent = PLAYER_NAME;
+
+  // ── Waiting room JS ───────────────────────────────────────────────────────
+  socket.on('room_updated', onRoomUpdated);
+  socket.on('__connected__', () => {
+    socket.send('join_room', {
+      room_id: ROOM_ID,
+      player_id: PLAYER_ID,
+      player_name: PLAYER_NAME,
+    });
+  });
+
+  function onRoomUpdated(data) {
+    const room = data.room;
+    renderPlayerList(room.players, room.max_players);
+    // Enable start button if room has any players (bots fill the rest)
+    document.getElementById('start-btn').disabled = room.players.length === 0;
+  }
+
+  function renderPlayerList(players, maxPlayers) {
+    const list = document.getElementById('player-list');
+    list.innerHTML = '';
+
+    // Filled seats
+    players.forEach(p => {
+      const row = document.createElement('div');
+      row.className = 'player-row';
+      row.innerHTML = `
+        <div class="player-avatar">${p.name[0].toUpperCase()}</div>
+        <div class="player-name-row">${escHtmlLobby(p.name)}
+          ${p.is_bot ? '<span style="font-size:.7rem;color:var(--cream-400)">(bot)</span>' : ''}
+        </div>
+        <span class="player-status ${p.connected !== false ? 'connected' : ''}">
+          ${p.connected !== false ? 'ready' : 'away'}
+        </span>
+      `;
+      list.appendChild(row);
+    });
+
+    // Empty seats
+    for (let i = players.length; i < maxPlayers; i++) {
+      const row = document.createElement('div');
+      row.className = 'player-row seat-empty';
+      row.innerHTML = `
+        <div class="player-avatar" style="opacity:.3">?</div>
+        <div class="player-name-row" style="color:var(--cream-400);font-style:italic">
+          Empty seat
+        </div>
+      `;
+      list.appendChild(row);
+    }
+  }
+
+  function startGame() {
+    socket.send('start_game', {
+      room_id: ROOM_ID,
+      player_id: PLAYER_ID,
+    });
+  }
+
+  function copyRoomCode() {
+    navigator.clipboard.writeText(ROOM_ID).catch(() => {});
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy Code', 1500);
+  }
+
+  // ── Switch from waiting overlay to game board ─────────────────────────────
+  function showGameBoard() {
+    document.getElementById('waiting-overlay').style.display = 'none';
+    document.getElementById('game-root').style.display = 'grid';
+  }
+
+  // Hook game_started to reveal the board
+  socket.on('game_started', (data) => {
+    showGameBoard();
+    // Now pass control to game.js's handler
+    onGameStarted(data);
+    logEvent('Game started — good luck!');
+  });
+
+  // Also hook other game events to log them
+  socket.on('trick_complete', (data) => {
+    onTrickComplete(data);
+    const winner = data.winner_id;
+    logEvent(`Trick → ${winner} (+${data.points}pts)`);
+    updateTricksCount();
+  });
+
+  socket.on('round_complete', (data) => {
+    onRoundComplete(data);
+    logEvent(`Round complete. Scores: A=${data.scores?.team_a?.total ?? '?'} B=${data.scores?.team_b?.total ?? '?'}`);
+  });
+
+  socket.on('game_over', (data) => {
+    onGameOver(data);
+    logEvent(`🏆 Game over! Winner: ${data.winner}`);
+  });
+
+  socket.on('state_updated', (data) => {
+    onStateUpdated(data);
+    updateTricksCount();
+  });
+
+  function logEvent(msg) {
+    const log = document.getElementById('game-log');
+    const line = document.createElement('div');
+    line.textContent = msg;
+    log.prepend(line);
+    // Keep log to last 40 entries
+    while (log.children.length > 40) log.removeChild(log.lastChild);
+  }
+
+  function updateTricksCount() {
+    if (!gameState) return;
+    const el = document.getElementById('tricks-count');
+    if (el) el.textContent = `${gameState.completed_tricks_count} / 9`;
+  }
+
+  function escHtmlLobby(str) {
+    return String(str)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Initialise socket + game ──────────────────────────────────────────────
+  // game.js exposes initGame() — call it with our IDs
+  initGame(PLAYER_ID, ROOM_ID);
+</script>
 {% endblock %}
