@@ -1,1 +1,3 @@
-socket.js manages the WebSocket connection. game.js owns all rendering and reacts to state updates from the server. tutorial.js drives the step-by-step tutorial flow independently.
+socket.js manages the WebSocket connection. 
+game.js owns all rendering and reacts to state updates from the server. 
+tutorial.js drives the step-by-step tutorial flow independently.

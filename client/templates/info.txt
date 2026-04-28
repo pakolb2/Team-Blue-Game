@@ -1,1 +1,4 @@
-Jinja2 HTML templates served by FastAPI. base.html is the shared layout. game.html loads the WebSocket client and game renderer. tutorial.html is self-contained.
+Jinja2 HTML templates served by FastAPI. 
+base.html is the shared layout. 
+game.html loads the WebSocket client and game renderer. 
+tutorial.html is self-contained.

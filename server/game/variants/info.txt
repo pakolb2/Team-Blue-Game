@@ -1,1 +1,2 @@
-Each variant (Schieber, Coiffeur, Differenzler, etc.) lives in its own module and implements the BaseVariant interface. Adding a new variant never touches existing logic.
+Each variant (Schieber, Coiffeur, Differenzler, etc.) lives in its own module and implements the BaseVariant interface. 
+Adding a new variant never touches existing logic.
