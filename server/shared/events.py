@@ -56,6 +56,10 @@ class Event:
     CHOOSE_TRUMP = "choose_trump"
     PLAY_CARD    = "play_card"
     LIST_ROOMS   = "list_rooms"
+    ADD_BOT      = "add_bot"
+    MOVE_SEAT    = "move_seat"
+    REQUEST_SWAP = "request_swap"
+    ACCEPT_SWAP  = "accept_swap"
 
     # Server → Client
     ROOM_UPDATED    = "room_updated"
@@ -114,21 +118,23 @@ class ListRoomsMessage(BaseModel):
 # Outbound message builders (Server → Client)
 # ---------------------------------------------------------------------------
 
-def room_updated_msg(room: Room) -> dict:
-    """Broadcast when a player joins or leaves a room."""
+def room_updated_msg(room: Room, swap_requests: list[dict[str, str]] | None = None) -> dict:
+    """Broadcast when room seating, players, or pending swap requests change."""
     return {
         "type": Event.ROOM_UPDATED,
         "room": {
             "id": room.id,
             "players": [
                 {"id": p.id, "name": p.name, "is_bot": p.is_bot,
-                 "connected": p.connected}
+                 "connected": p.connected, "seat_index": p.seat_index,
+                 "team": p.team.value if p.team else None}
                 for p in room.players
             ],
             "is_full": room.is_full,
             "is_active": room.is_active,
             "variant_name": room.variant_name,
             "max_players": room.max_players,
+            "swap_requests": swap_requests or [],
         },
     }
 
@@ -249,6 +255,7 @@ def _serialise_state(state: GameState, for_player_id: str) -> dict:
                 "id": p.id,
                 "name": p.name,
                 "team": p.team.value if p.team else None,
+                "seat_index": p.seat_index,
                 "is_bot": p.is_bot,
                 "connected": p.connected,
                 "hand": [

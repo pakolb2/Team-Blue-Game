@@ -2,18 +2,6 @@
 server/shared/types.py
 ----------------------
 All Pydantic models used across the Jass codebase.
-These are the single source of truth for every data structure —
-server game logic, WebSocket messages, and bot interfaces all import from here.
-
-Model hierarchy:
-  Card
-  Player       (holds list[Card] as hand)
-  Trick        (holds list[TrickEntry] — card + who played it)
-  Room         (holds list[Player])
-  GameState    (holds Room, list[Trick], current Trick, scores, ...)
-  Variant      (lightweight name holder — logic lives in variant classes)
-  GamePhase    (enum for the stages a game moves through)
-  TrumpMode    (enum for the 6 possible trump selections in Schieber)
 """
 
 from __future__ import annotations
@@ -23,20 +11,16 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
-# ---------------------------------------------------------------------------
-# Enums
-# ---------------------------------------------------------------------------
-
 class Suit(str, Enum):
     """The four suits of the Swiss Jass deck."""
-    EICHEL  = "Eichel"   # Acorns
-    SCHILTE = "Schilte"  # Shields
-    SCHELLE = "Schelle"  # Bells
-    ROSE    = "Rose"     # Roses
+    EICHEL  = "Eichel"
+    SCHILTE = "Schilte"
+    SCHELLE = "Schelle"
+    ROSE    = "Rose"
 
 
 class Rank(str, Enum):
-    """Card ranks in the Jass deck (no 2–5)."""
+    """Card ranks in the Jass deck (no 2-5)."""
     SIX   = "6"
     SEVEN = "7"
     EIGHT = "8"
@@ -49,29 +33,17 @@ class Rank(str, Enum):
 
 
 class TrumpMode(str, Enum):
-    """
-    The 6 ways trump can be chosen in Schieber.
-    OBENABE and UNEUFE are special modes with no trump suit —
-    all suits rank by face value (high-to-low or low-to-high).
-    """
+    """The 6 ways trump can be chosen in Schieber."""
     EICHEL  = "Eichel"
     SCHILTE = "Schilte"
     SCHELLE = "Schelle"
     ROSE    = "Rose"
-    OBENABE = "Obenabe"   # No trump — Aces are highest
-    UNDEUFE = "Undeufe"   # No trump — 6s are highest
+    OBENABE = "Obenabe"
+    UNDEUFE = "Undeufe"
 
 
 class GamePhase(str, Enum):
-    """
-    The lifecycle stages of a single game round.
-
-      WAITING      — room exists, not enough players yet
-      TRUMP_SELECT — cards dealt, the designated player must choose trump
-      PLAYING      — trump chosen, tricks being played
-      SCORING      — all 9 tricks done, scores being tallied
-      FINISHED     — game over, winner determined
-    """
+    """The lifecycle stages of a single game round."""
     WAITING      = "waiting"
     TRUMP_SELECT = "trump_select"
     PLAYING      = "playing"
@@ -80,20 +52,13 @@ class GamePhase(str, Enum):
 
 
 class TeamId(str, Enum):
-    """Two teams in a 4-player game. Players 0 & 2 are TEAM_A, players 1 & 3 are TEAM_B."""
+    """Team identifiers for team-based variants."""
     TEAM_A = "team_a"
     TEAM_B = "team_b"
 
 
-# ---------------------------------------------------------------------------
-# Core models
-# ---------------------------------------------------------------------------
-
 class Card(BaseModel):
-    """
-    A single playing card.
-    Immutable by convention — never mutate a card, replace it.
-    """
+    """A single playing card."""
     suit: Suit
     rank: Rank
 
@@ -114,15 +79,19 @@ class Card(BaseModel):
 class Player(BaseModel):
     """
     A participant in the game — human or bot.
-    `hand` is the cards currently held; it shrinks as cards are played.
-    `team` is assigned by the room manager based on seat order.
+
+    seat_index is explicit lobby seating. Teams are still assigned by the
+    engine from the final seat order for team-based variants, but seat_index
+    lets the lobby show empty seats, add bots to a chosen seat, and move/swap
+    players without relying on raw list position.
     """
     id: str
     name: str
     hand: list[Card] = Field(default_factory=list)
     is_bot: bool = False
     team: Optional[TeamId] = None
-    connected: bool = True   # False if the WebSocket has dropped
+    connected: bool = True
+    seat_index: Optional[int] = None
 
 
 class TrickEntry(BaseModel):
@@ -132,16 +101,11 @@ class TrickEntry(BaseModel):
 
 
 class Trick(BaseModel):
-    """
-    A single trick (one card from each player).
-    `entries` is ordered by play sequence.
-    `winner_id` is None until the trick is complete and evaluated.
-    `lead_suit` is the suit of the first card played — used for follow-suit rules.
-    """
+    """A single trick (one card from each player)."""
     entries: list[TrickEntry] = Field(default_factory=list)
     winner_id: Optional[str] = None
     lead_suit: Optional[Suit] = None
-    points: int = 0   # Populated after trick is scored
+    points: int = 0
 
     @property
     def is_complete(self) -> bool:
@@ -168,15 +132,12 @@ class TeamScore(BaseModel):
 
 
 class Room(BaseModel):
-    """
-    A lobby room. Holds players before and during a game.
-    `variant_name` is set when the game starts.
-    """
+    """A lobby room. Holds players before and during a game."""
     id: str
     players: list[Player] = Field(default_factory=list)
     max_players: int = 4
     variant_name: Optional[str] = None
-    is_active: bool = False   # True once the game has started
+    is_active: bool = False
 
     @property
     def is_full(self) -> bool:
@@ -186,26 +147,20 @@ class Room(BaseModel):
     def player_ids(self) -> list[str]:
         return [p.id for p in self.players]
 
+    @property
+    def occupied_seats(self) -> set[int]:
+        return {
+            p.seat_index
+            for p in self.players
+            if p.seat_index is not None
+        }
+
+    def player_at_seat(self, seat_index: int) -> Optional[Player]:
+        return next((p for p in self.players if p.seat_index == seat_index), None)
+
 
 class GameState(BaseModel):
-    """
-    The complete, authoritative snapshot of a game at any point in time.
-    The engine mutates this object; clients receive read-only copies.
-
-    Fields:
-      room_id         — which room this game belongs to
-      players         — ordered list of players (seat 0 leads first)
-      phase           — current lifecycle stage (see GamePhase)
-      trump_mode      — chosen trump/mode (None during TRUMP_SELECT phase)
-      trump_player_id — who gets to choose trump this round
-      current_trick   — the trick currently being played
-      completed_tricks — all finished tricks this round
-      current_player_id — whose turn it is to act
-      scores          — team scores
-      round_number    — increments each time a full set of 9 tricks is played
-      game_over       — True when a team has reached the winning score
-      winner          — set when game_over is True
-    """
+    """The complete, authoritative snapshot of a game at any point in time."""
     room_id: str
     players: list[Player]
     phase: GamePhase = GamePhase.WAITING
@@ -220,16 +175,13 @@ class GameState(BaseModel):
     winner: Optional[TeamId] = None
 
     def get_player(self, player_id: str) -> Optional[Player]:
-        """Look up a player by id."""
         return next((p for p in self.players if p.id == player_id), None)
 
     def get_player_team(self, player_id: str) -> Optional[TeamId]:
-        """Return the team of a player."""
         player = self.get_player(player_id)
         return player.team if player else None
 
     def next_player_id(self, after_id: str) -> Optional[str]:
-        """Return the player_id of the next seat after `after_id` (wraps around)."""
         ids = [p.id for p in self.players]
         if after_id not in ids:
             return None
@@ -237,10 +189,6 @@ class GameState(BaseModel):
         return ids[(idx + 1) % len(ids)]
 
     def public_view(self, for_player_id: str) -> "GameState":
-        """
-        Return a copy of this state safe to send to `for_player_id`.
-        Other players' hands are hidden (replaced with empty lists).
-        """
         import copy
         state = copy.deepcopy(self)
         for player in state.players:
@@ -250,11 +198,7 @@ class GameState(BaseModel):
 
 
 class Variant(BaseModel):
-    """
-    Lightweight descriptor for a game variant.
-    The actual rule logic lives in server/game/variants/*.py classes.
-    This model is used in GameState and API responses to identify the variant by name.
-    """
+    """Lightweight descriptor for a game variant."""
     name: str
     display_name: str
     description: str = ""

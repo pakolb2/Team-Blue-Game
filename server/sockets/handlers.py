@@ -151,7 +151,11 @@ async def handle_event(
         Event.CHOOSE_TRUMP: _handle_choose_trump,
         Event.PLAY_CARD:    _handle_play_card,
         Event.LIST_ROOMS:   _handle_list_rooms,
-        "add_bot":          _handle_add_bot,
+        Event.ADD_BOT:       _handle_add_bot,
+        Event.MOVE_SEAT:     _handle_move_seat,
+        Event.REQUEST_SWAP:  _handle_request_swap,
+        Event.ACCEPT_SWAP:   _handle_accept_swap,
+        "swap_players":     _handle_swap_players,
     }
 
     handler = handlers.get(event_type)
@@ -174,6 +178,11 @@ async def handle_event(
             "An internal error occurred.", code="internal_error"
         ))
 
+
+
+
+def room_update_with_swaps(manager: RoomManager, room_id: str, room) -> dict:
+    return room_updated_msg(room, manager.get_swap_requests(room_id))
 
 # ---------------------------------------------------------------------------
 # Individual event handlers
@@ -205,7 +214,7 @@ async def _handle_join_room(
     existing_room_id = manager.find_player_room(player_id)
     if existing_room_id == room_id:
         room = manager.reconnect_player(room_id, player_id)
-        await connections.broadcast_to_room(room_id, room_updated_msg(room), manager)
+        await connections.broadcast_to_room(room_id, room_update_with_swaps(manager, room_id, room), manager)
 
         # Re-send current game state if game is active
         engine = manager.get_engine(room_id)
@@ -219,7 +228,7 @@ async def _handle_join_room(
 
     # Notify everyone in the room
     await connections.broadcast_to_room(
-        room_id, room_updated_msg(room), manager
+        room_id, room_update_with_swaps(manager, room_id, room), manager
     )
 
 
@@ -237,7 +246,7 @@ async def _handle_leave_room(
 
     room = manager.leave_room(room_id, player_id)
     await connections.broadcast_to_room(
-        room_id, room_updated_msg(room), manager
+        room_id, room_update_with_swaps(manager, room_id, room), manager
     )
 
 async def _handle_add_bot(
@@ -249,15 +258,82 @@ async def _handle_add_bot(
 ) -> None:
     room_id = data.get("room_id", "").strip().upper()
     bot_type = data.get("bot_type", "rule_based")
+    seat_index = data.get("seat_index")
+    if seat_index is not None:
+        seat_index = int(seat_index)
 
     if not room_id:
         raise ValueError("room_id is required.")
 
-    room = manager.add_bot(room_id, bot_type)
+    room = manager.add_bot(room_id, bot_type, seat_index=seat_index)
 
     await connections.broadcast_to_room(
         room_id,
-        room_updated_msg(room),
+        room_update_with_swaps(manager, room_id, room),
+        manager,
+    )
+
+
+
+async def _handle_move_seat(
+    websocket: WebSocket,
+    player_id: str,
+    data: dict,
+    manager: RoomManager,
+    connections: ConnectionManager,
+) -> None:
+    room_id = data.get("room_id", "").strip().upper()
+    target_seat = data.get("seat_index")
+
+    if not room_id or target_seat is None:
+        raise ValueError("room_id and seat_index are required.")
+
+    room = manager.move_player_to_seat(room_id, player_id, int(target_seat))
+    await connections.broadcast_to_room(
+        room_id,
+        room_update_with_swaps(manager, room_id, room),
+        manager,
+    )
+
+
+async def _handle_request_swap(
+    websocket: WebSocket,
+    player_id: str,
+    data: dict,
+    manager: RoomManager,
+    connections: ConnectionManager,
+) -> None:
+    room_id = data.get("room_id", "").strip().upper()
+    target_player_id = data.get("target_player_id")
+
+    if not room_id or not target_player_id:
+        raise ValueError("room_id and target_player_id are required.")
+
+    room = manager.request_swap(room_id, player_id, target_player_id)
+    await connections.broadcast_to_room(
+        room_id,
+        room_update_with_swaps(manager, room_id, room),
+        manager,
+    )
+
+
+async def _handle_accept_swap(
+    websocket: WebSocket,
+    player_id: str,
+    data: dict,
+    manager: RoomManager,
+    connections: ConnectionManager,
+) -> None:
+    room_id = data.get("room_id", "").strip().upper()
+    requester_id = data.get("requester_player_id")
+
+    if not room_id or not requester_id:
+        raise ValueError("room_id and requester_player_id are required.")
+
+    room = manager.accept_swap(room_id, player_id, requester_id)
+    await connections.broadcast_to_room(
+        room_id,
+        room_update_with_swaps(manager, room_id, room),
         manager,
     )
 
@@ -412,3 +488,25 @@ async def _handle_list_rooms(
     """Respond to the requesting player with the list of open rooms."""
     open_rooms = manager.list_open_rooms()
     await connections.send(player_id, rooms_list_msg(open_rooms))
+
+async def _handle_swap_players(
+    websocket: WebSocket,
+    player_id: str,
+    data: dict,
+    manager: RoomManager,
+    connections: ConnectionManager,
+) -> None:
+    room_id = data.get("room_id", "").strip().upper()
+    player_a = data.get("player_a_id")
+    player_b = data.get("player_b_id")
+
+    if not room_id or not player_a or not player_b:
+        raise ValueError("room_id, player_a_id, and player_b_id are required.")
+
+    room = manager.swap_players(room_id, player_a, player_b)
+
+    await connections.broadcast_to_room(
+        room_id,
+        room_update_with_swaps(manager, room_id, room),
+        manager,
+    )

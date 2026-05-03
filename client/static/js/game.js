@@ -148,7 +148,7 @@ function render() {
 // ─── Seats ───────────────────────────────────────────────────────────────────
 
 function renderSeats() {
-  const players = gameState.players;
+  const players = orderedPlayers(gameState.players);
   const myIdx = players.findIndex(p => p.id === myPlayerId);
   if (myIdx === -1) return;
 
@@ -157,6 +157,19 @@ function renderSeats() {
   for (let i = 0; i < 4; i++) {
     ordered.push(players[(myIdx + i) % players.length]);
   }
+
+  const me = ordered[0];
+  const myNameEl = document.getElementById('my-name');
+  if (myNameEl && me) {
+    myNameEl.innerHTML = `
+      ${escHtml(me.name || me.id)}
+      <span style="color:var(--gold-accent)"> (you)</span>
+      <div style="font-size:.75rem;color:var(--cream-400);margin-top:.2rem">
+        ${formatTeam(me.team)}
+      </div>
+    `;
+  }
+  
 
   // Clear and rebuild opponent seats (skip index 0 = self)
   ['seat-top', 'seat-left', 'seat-right'].forEach(cls => {
@@ -178,7 +191,13 @@ function renderSeats() {
     slot.innerHTML = `
       <div class="seat ${teamCls} ${isActive ? 'seat-active' : ''}">
         <div class="seat-indicator"></div>
-        <div class="seat-name">${escHtml(player.id)}</div>
+        <div class="seat-name">
+          ${escHtml(player.name || player.id)}
+          ${isPartner(player) ? '<span style="color:var(--gold-accent)"> (partner)</span>' : ''}
+        </div>
+        <div style="font-size:.75rem;color:var(--cream-400);margin-top:.2rem">
+          ${formatTeam(player.team)}
+        </div>
         <div class="mini-hand ${i === 2 ? '' : 'mini-hand-v'}">
           ${Array.from({ length: player.hand_count }, () =>
             `<div class="card card-back"></div>`
@@ -196,7 +215,7 @@ function renderTrick() {
   if (!trickEl) return;
 
   const trick = gameState.current_trick;
-  const players = gameState.players;
+  const players = orderedPlayers(gameState.players);
   const myIdx = players.findIndex(p => p.id === myPlayerId);
 
   // Clear existing played cards
@@ -537,6 +556,29 @@ function buildCardHTML(card, extraClasses = []) {
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
+function orderedPlayers(players) {
+  return [...players].sort((a, b) => {
+    const sa = a.seat_index ?? 999;
+    const sb = b.seat_index ?? 999;
+    return sa - sb;
+  });
+}
+
+function formatTeam(team) {
+  if (team === 'team_a') return 'Team A';
+  if (team === 'team_b') return 'Team B';
+  return 'No team';
+}
+
+function getMyTeam() {
+  const me = gameState?.players?.find(p => p.id === myPlayerId);
+  return me ? me.team : null;
+}
+
+function isPartner(player) {
+  const myTeam = getMyTeam();
+  return player.id !== myPlayerId && player.team === myTeam;
+}
 
 function escHtml(str) {
   return String(str)

@@ -3,7 +3,6 @@
 
 {% block head %}
 <style>
-  /* Full-screen game layout — override page container */
   body { overflow: hidden; }
   .page { max-width: 100%; padding: 0; }
   .site-header { padding: .75rem 1.25rem; margin-bottom: 0; }
@@ -15,7 +14,6 @@
     height: calc(100vh - 58px);
     gap: 0;
   }
-
   .game-sidebar-left {
     grid-column: 1;
     grid-row: 1 / 3;
@@ -26,7 +24,6 @@
     gap: 1rem;
     overflow-y: auto;
   }
-
   .game-sidebar-right {
     grid-column: 3;
     grid-row: 1 / 3;
@@ -36,7 +33,6 @@
     flex-direction: column;
     gap: 1rem;
   }
-
   .game-main {
     grid-column: 2;
     grid-row: 1;
@@ -47,7 +43,6 @@
     padding: .75rem 1rem;
     position: relative;
   }
-
   .game-bottom {
     grid-column: 2;
     grid-row: 2;
@@ -55,7 +50,6 @@
     border-top: 1px solid rgba(255,255,255,.06);
   }
 
-  /* Waiting room overlay (shown before game starts) */
   #waiting-overlay {
     position: fixed;
     inset: 0;
@@ -68,31 +62,77 @@
     gap: 1.5rem;
   }
 
+  .waiting-room { max-width: 760px; width: min(760px, 94vw); }
+  .seat-lobby-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 1.25rem 0;
+  }
+  .seat-lobby-list {
+    display: flex;
+    flex-direction: column;
+    gap: .65rem;
+    margin: 1.25rem 0;
+  }
+  .team-column {
+    background: rgba(0,0,0,.18);
+    border: 1px solid rgba(255,255,255,.07);
+    border-radius: var(--radius-lg);
+    padding: 1rem;
+  }
+  .team-title {
+    font-family: var(--font-display);
+    color: var(--gold-accent);
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-size: .85rem;
+    margin-bottom: .7rem;
+  }
+  .seat-slot {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: .65rem .75rem;
+    margin-bottom: .55rem;
+    background: rgba(0,0,0,.22);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(255,255,255,.06);
+  }
+  .seat-slot.empty { border-style: dashed; opacity: .82; }
+  .seat-actions {
+    margin-left: auto;
+    display: flex;
+    gap: .35rem;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .seat-meta {
+    font-size: .75rem;
+    color: var(--cream-400);
+    margin-top: .12rem;
+  }
+
   @media (max-width: 900px) {
-    .game-root {
-      grid-template-columns: 1fr;
-      grid-template-rows: auto 1fr auto auto;
-    }
+    .game-root { grid-template-columns: 1fr; grid-template-rows: auto 1fr auto auto; }
     .game-sidebar-left, .game-sidebar-right { display: none; }
     .game-main { grid-column: 1; }
     .game-bottom { grid-column: 1; }
+    .seat-lobby-grid { grid-template-columns: 1fr; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-
-<!-- ── Waiting room overlay (hidden once game starts) ───────────────────── -->
 <div id="waiting-overlay">
   <div class="waiting-room">
-    <h2 style="font-family:var(--font-display);font-size:1.4rem;
-               color:var(--cream-300);margin-bottom:.5rem">
+    <h2 style="font-family:var(--font-display);font-size:1.4rem;color:var(--cream-300);margin-bottom:.5rem;text-align:center">
       Room Code
     </h2>
     <div class="waiting-room-id" id="room-code-display">{{ room_id }}</div>
 
-    <div class="player-list" id="player-list">
-      <!-- Populated by JS -->
+    <div id="seat-lobby">
       <div class="player-row seat-empty">
         <div class="player-avatar">?</div>
         <div class="player-name-row" style="color:var(--cream-400);font-style:italic">
@@ -102,128 +142,79 @@
     </div>
 
     <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap">
-      <button class="btn btn-secondary" onclick="copyRoomCode()">
-        Copy Code
-      </button>
-      <button class="btn btn-secondary" onclick="addBot('random')">
-        Add Random Bot
-      </button>
-      <button class="btn btn-secondary" onclick="addBot('rule_based')">
-        Add Rule-Based Bot
-      </button>
-      <button class="btn btn-primary" id="start-btn" onclick="startGame()" disabled>
-        Start Game
-      </button>
-      <!-- NEW: Leave Room button -->
-      <button class="btn btn-secondary" onclick="leaveRoom()">
-        Leave Room
-      </button>
+      <button class="btn btn-secondary" onclick="copyRoomCode(event)">Copy Code</button>
+      <button class="btn btn-primary" id="start-btn" onclick="startGame()" disabled>Start Game</button>
+      <button class="btn btn-secondary" onclick="leaveRoom()">Leave Room</button>
     </div>
 
-    <p style="margin-top:1.25rem;font-size:.85rem;color:var(--cream-400);
-              text-align:center;font-style:italic">
-      Share the room code with friends, or start with bots filling empty seats.
+    <p style="margin-top:1.25rem;font-size:.85rem;color:var(--cream-400);text-align:center;font-style:italic">
+      Choose a seat, add bots to empty seats, or request a swap with another human player.
     </p>
   </div>
 </div>
 
-<!-- ── Game board (shown once game starts) ─────────────────────────────── -->
 <div class="game-root" id="game-root" style="display:none">
-
-  <!-- Left sidebar: scoreboard + trump + round -->
   <aside class="game-sidebar-left">
     <div class="panel">
       <div class="panel-title">Score</div>
-      <div class="scoreboard" id="scoreboard">
-        <!-- Populated by game.js -->
-      </div>
+      <div class="scoreboard" id="scoreboard"></div>
     </div>
-
     <div class="panel">
       <div class="panel-title">Trump</div>
-      <div class="trump-display" id="trump-display">
-        <span class="trump-badge" style="opacity:.4">—</span>
-      </div>
+      <div class="trump-display" id="trump-display"><span class="trump-badge" style="opacity:.4">—</span></div>
     </div>
-
     <div class="panel" style="flex:1">
       <div class="panel-title">Tricks</div>
-      <div id="tricks-count" style="font-family:var(--font-display);
-           font-size:1.75rem;font-weight:700;color:var(--cream-100);
-           text-align:center;padding:.5rem 0">
+      <div id="tricks-count" style="font-family:var(--font-display);font-size:1.75rem;font-weight:700;color:var(--cream-100);text-align:center;padding:.5rem 0">
         0 / 9
       </div>
     </div>
   </aside>
 
-  <!-- Main area: opponent seats + trick + my seat label -->
   <main class="game-main">
-
-    <!-- Top opponent -->
     <div class="seat seat-top" id="seat-top"></div>
-
-    <!-- Middle row: left opp + trick + right opp -->
     <div style="display:flex;align-items:center;gap:1rem;width:100%">
       <div class="seat seat-left" id="seat-left"></div>
-
-      <!-- Trick area -->
       <div style="flex:1;display:flex;justify-content:center">
-        <div class="trick-area" id="trick-area">
-          <!-- Trick cards rendered by game.js -->
-        </div>
+        <div class="trick-area" id="trick-area"></div>
       </div>
-
       <div class="seat seat-right" id="seat-right"></div>
     </div>
-
-    <!-- My name label -->
     <div class="seat" id="my-seat-label">
       <div class="seat-indicator" id="my-indicator"></div>
       <div class="seat-name" id="my-name">You</div>
     </div>
-
   </main>
 
-  <!-- Right sidebar: status + log -->
   <aside class="game-sidebar-right">
     <div class="panel">
       <div class="panel-title">Status</div>
       <div class="status-bar" id="status-bar">Connecting…</div>
     </div>
-
     <div class="panel" style="flex:1;overflow-y:auto">
       <div class="panel-title">Log</div>
-      <div id="game-log" style="font-size:.8rem;color:var(--cream-400);
-           line-height:1.6;font-family:var(--font-mono)">
-        <!-- Events appended by JS -->
-      </div>
+      <div id="game-log" style="font-size:.8rem;color:var(--cream-400);line-height:1.6;font-family:var(--font-mono)"></div>
     </div>
   </aside>
 
-  <!-- Bottom: my hand -->
   <div class="game-bottom">
-    <div class="hand my-hand" id="my-hand">
-      <!-- Cards rendered by game.js -->
-    </div>
+    <div class="hand my-hand" id="my-hand"></div>
   </div>
-
 </div>
-
 {% endblock %}
 
 {% block scripts %}
 <script src="/static/js/socket.js"></script>
 <script src="/static/js/game.js"></script>
 <script>
-  // ── Boot ──────────────────────────────────────────────────────────────────
-  const ROOM_ID    = '{{ room_id }}';
-  const PLAYER_ID  = getOrCreatePlayerId();
+  const ROOM_ID = '{{ room_id }}';
+  const PLAYER_ID = getOrCreatePlayerId();
   const PLAYER_NAME = getPlayerName();
 
-  // Show name in "You" label
+  let latestRoom = null;
+
   document.getElementById('my-name').textContent = PLAYER_NAME;
 
-  // ── Waiting room JS ───────────────────────────────────────────────────────
   socket.on('room_updated', onRoomUpdated);
   socket.on('__connected__', () => {
     socket.send('join_room', {
@@ -234,54 +225,124 @@
   });
 
   function onRoomUpdated(data) {
-    const room = data.room;
-    renderPlayerList(room.players, room.max_players);
-    // Enable start button if room has any players (bots fill the rest)
-    document.getElementById('start-btn').disabled = room.players.length === 0;
+    latestRoom = data.room;
+    renderSeatLobby(latestRoom);
+    document.getElementById('start-btn').disabled = latestRoom.players.length === 0;
   }
 
-  function renderPlayerList(players, maxPlayers) {
-    const list = document.getElementById('player-list');
-    list.innerHTML = '';
+  function renderSeatLobby(room) {
+    const root = document.getElementById('seat-lobby');
+    const maxPlayers = room.max_players || 4;
+    const players = room.players || [];
+    const variantName = room.variant_name || 'schieber';
+    const teamBased = isTeamVariant(variantName);
 
-    // Filled seats
-    players.forEach(p => {
-      const row = document.createElement('div');
-      row.className = 'player-row';
-      row.innerHTML = `
-        <div class="player-avatar">${p.name[0].toUpperCase()}</div>
-        <div class="player-name-row">${escHtmlLobby(p.name)}
-          ${p.is_bot ? '<span style="font-size:.7rem;color:var(--cream-400)">(bot)</span>' : ''}
+    if (teamBased && maxPlayers === 4) {
+      root.className = 'seat-lobby-grid';
+      root.innerHTML = `
+        <div class="team-column">
+          <div class="team-title">Team A</div>
+          <div id="team-a-slots"></div>
         </div>
-        <span class="player-status ${p.connected !== false ? 'connected' : ''}">
-          ${p.connected !== false ? 'ready' : 'away'}
-        </span>
-      `;
-      list.appendChild(row);
-    });
-
-    // Empty seats
-    for (let i = players.length; i < maxPlayers; i++) {
-      const row = document.createElement('div');
-      row.className = 'player-row seat-empty';
-      row.innerHTML = `
-        <div class="player-avatar" style="opacity:.3">?</div>
-        <div class="player-name-row" style="color:var(--cream-400);font-style:italic">
-          Empty seat
+        <div class="team-column">
+          <div class="team-title">Team B</div>
+          <div id="team-b-slots"></div>
         </div>
       `;
-      list.appendChild(row);
+      [0, 2].forEach(seat => document.getElementById('team-a-slots').appendChild(buildSeatSlot(seat, players, room)));
+      [1, 3].forEach(seat => document.getElementById('team-b-slots').appendChild(buildSeatSlot(seat, players, room)));
+      return;
+    }
+
+    root.className = 'seat-lobby-list';
+    root.innerHTML = '';
+    for (let seat = 0; seat < maxPlayers; seat++) {
+      root.appendChild(buildSeatSlot(seat, players, room));
     }
   }
 
-  function startGame() {
-    socket.send('start_game', {
-      room_id: ROOM_ID,
-      player_id: PLAYER_ID,
+  function buildSeatSlot(seatIndex, players, room) {
+    const player = players.find(p => p.seat_index === seatIndex);
+    const slot = document.createElement('div');
+    slot.className = `seat-slot ${player ? '' : 'empty'}`;
+
+    if (!player) {
+      slot.innerHTML = `
+        <div class="player-avatar" style="opacity:.45">?</div>
+        <div class="player-name-row" style="color:var(--cream-400);font-style:italic">
+          Empty seat
+          <div class="seat-meta">${seatLabel(seatIndex, room)}</div>
+        </div>
+        <div class="seat-actions">
+          ${currentPlayerInRoom(players) ? `<button class="btn btn-secondary btn-sm" data-action="move" data-seat="${seatIndex}">Move here</button>` : ''}
+          <button class="btn btn-secondary btn-sm" data-action="bot-random" data-seat="${seatIndex}">Random Bot</button>
+          <button class="btn btn-secondary btn-sm" data-action="bot-rule" data-seat="${seatIndex}">Rule Bot</button>
+        </div>
+      `;
+    } else {
+      const pendingForMe = (room.swap_requests || []).filter(r => r.target_player_id === PLAYER_ID && player.id === PLAYER_ID);
+      slot.innerHTML = `
+        <div class="player-avatar">${escHtmlLobby((player.name || '?')[0].toUpperCase())}</div>
+        <div class="player-name-row">
+          ${escHtmlLobby(player.name || player.id)}
+          ${player.id === PLAYER_ID ? '<span style="color:var(--gold-accent)"> (you)</span>' : ''}
+          ${player.is_bot ? '<span style="font-size:.75rem;color:var(--cream-400)"> (bot)</span>' : ''}
+          <div class="seat-meta">${seatLabel(seatIndex, room)}</div>
+          ${pendingForMe.map(r => `
+            <div style="margin-top:.35rem;color:var(--gold-accent);font-size:.8rem">
+              Swap request from ${escHtmlLobby(playerNameById(players, r.requester_player_id))}
+              <button class="btn btn-secondary btn-sm" data-action="accept-swap" data-requester="${escAttr(r.requester_player_id)}">Accept</button>
+            </div>
+          `).join('')}
+        </div>
+        <div class="seat-actions">
+          ${player.id !== PLAYER_ID && player.is_bot ? `<button class="btn btn-secondary btn-sm" data-action="move" data-seat="${seatIndex}">Swap with bot</button>` : ''}
+          ${player.id !== PLAYER_ID && !player.is_bot ? `<button class="btn btn-secondary btn-sm" data-action="request-swap" data-target="${escAttr(player.id)}">Request swap</button>` : ''}
+        </div>
+      `;
+    }
+
+    slot.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', () => handleSeatAction(btn.dataset));
     });
+
+    return slot;
   }
 
-  function copyRoomCode() {
+  function handleSeatAction(ds) {
+    if (ds.action === 'bot-random') addBot('random', Number(ds.seat));
+    if (ds.action === 'bot-rule') addBot('rule_based', Number(ds.seat));
+    if (ds.action === 'move') moveToSeat(Number(ds.seat));
+    if (ds.action === 'request-swap') requestSwap(ds.target);
+    if (ds.action === 'accept-swap') acceptSwap(ds.requester);
+  }
+
+  function isTeamVariant(variantName) {
+    return ['schieber', 'coiffeur'].includes(String(variantName || '').toLowerCase());
+  }
+
+  function seatLabel(seatIndex, room) {
+    if (isTeamVariant(room.variant_name) && (room.max_players || 4) === 4) {
+      const team = seatIndex === 0 || seatIndex === 2 ? 'Team A' : 'Team B';
+      return `${team} · Seat ${seatIndex + 1}`;
+    }
+    return `Seat ${seatIndex + 1}`;
+  }
+
+  function currentPlayerInRoom(players) {
+    return players.some(p => p.id === PLAYER_ID);
+  }
+
+  function playerNameById(players, playerId) {
+    const p = players.find(x => x.id === playerId);
+    return p ? (p.name || p.id) : playerId;
+  }
+
+  function startGame() {
+    socket.send('start_game', { room_id: ROOM_ID, player_id: PLAYER_ID });
+  }
+
+  function copyRoomCode(event) {
     navigator.clipboard.writeText(ROOM_ID).catch(() => {});
     const btn = event.target;
     btn.textContent = 'Copied!';
@@ -290,40 +351,54 @@
 
   function leaveRoom() {
     if (confirm('Are you sure you want to leave the room?')) {
-      socket.send('leave_room', {
-        room_id: ROOM_ID,
-        player_id: PLAYER_ID,
-      });
+      socket.send('leave_room', { room_id: ROOM_ID, player_id: PLAYER_ID });
       window.location.href = '/';
     }
   }
 
-  function addBot(botType) {
+  function addBot(botType, seatIndex) {
     socket.send('add_bot', {
       room_id: ROOM_ID,
       bot_type: botType,
+      seat_index: seatIndex,
     });
   }
 
-  // ── Switch from waiting overlay to game board ─────────────────────────────
+  function moveToSeat(seatIndex) {
+    socket.send('move_seat', {
+      room_id: ROOM_ID,
+      seat_index: seatIndex,
+    });
+  }
+
+  function requestSwap(targetPlayerId) {
+    socket.send('request_swap', {
+      room_id: ROOM_ID,
+      target_player_id: targetPlayerId,
+    });
+  }
+
+  function acceptSwap(requesterPlayerId) {
+    socket.send('accept_swap', {
+      room_id: ROOM_ID,
+      requester_player_id: requesterPlayerId,
+    });
+  }
+
   function showGameBoard() {
     document.getElementById('waiting-overlay').style.display = 'none';
     document.getElementById('game-root').style.display = 'grid';
   }
 
-  // Hook game_started to reveal the board
   socket.on('game_started', (data) => {
     showGameBoard();
-    // Now pass control to game.js's handler
     onGameStarted(data);
     logEvent('Game started — good luck!');
   });
 
-  // Also hook other game events to log them
   socket.on('trick_complete', (data) => {
     onTrickComplete(data);
-    const winner = data.winner_id;
-    logEvent(`Trick → ${winner} (+${data.points}pts)`);
+    logEvent(`Trick → ${data.winner_id} (+${data.points}pts)`);
     updateTricksCount();
   });
 
@@ -334,7 +409,7 @@
 
   socket.on('game_over', (data) => {
     onGameOver(data);
-    logEvent(`🏆 Game over! Winner: ${data.winner}`);
+    logEvent(`Game over. Winner: ${data.winner}`);
   });
 
   socket.on('state_updated', (data) => {
@@ -347,7 +422,6 @@
     const line = document.createElement('div');
     line.textContent = msg;
     log.prepend(line);
-    // Keep log to last 40 entries
     while (log.children.length > 40) log.removeChild(log.lastChild);
   }
 
@@ -359,11 +433,16 @@
 
   function escHtmlLobby(str) {
     return String(str)
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;');
   }
 
-  // ── Initialise socket + game ──────────────────────────────────────────────
-  // game.js exposes initGame() — call it with our IDs
+  function escAttr(str) {
+    return escHtmlLobby(str).replace(/'/g, '&#39;');
+  }
+
   initGame(PLAYER_ID, ROOM_ID);
 </script>
 {% endblock %}
