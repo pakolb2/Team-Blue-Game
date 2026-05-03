@@ -9,7 +9,7 @@ Covers:
   - Bot fill-in
   - Game start validation
   - Trump selection routing
-  - Card play routing (including auto-bot advancement)
+  - Card play routing and explicit one-card bot advancement
   - Multi-round games through the room manager
   - Error cases throughout
 
@@ -24,9 +24,14 @@ from server.shared.types import (
 )
 from server.shared.constants import WINNING_SCORE
 from server.rooms.room_manager import RoomManager, get_variant
+from server.game.variants.registry import clear_room_variant_state
 from server.bots.random_bot import RandomBot
 from server.bots.rule_based_bot import RuleBasedBot
 from server.game.variants.schieber import Schieber
+from server.game.variants.differenzler import Differenzler, set_prediction, get_prediction
+from server.game.variants.coiffeur import (
+    Coiffeur, clear_tracker, get_available_modes, record_mode_played,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -62,12 +67,32 @@ class TestVariantRegistry:
     def test_schieber_registered(self):
         assert isinstance(get_variant("schieber"), Schieber)
 
+    def test_differenzler_registered(self):
+        assert isinstance(get_variant("differenzler"), Differenzler)
+
+    def test_coiffeur_registered(self):
+        assert isinstance(get_variant("coiffeur"), Coiffeur)
+
     def test_case_insensitive(self):
         assert get_variant("SCHIEBER") is not None
+        assert get_variant("Coiffeur").name == "coiffeur"
 
     def test_unknown_raises(self):
         with pytest.raises(ValueError, match="Unknown variant"):
             get_variant("unknown_game")
+
+    def test_clear_room_variant_state_clears_registered_side_stores(self):
+        set_prediction("R1", "p1", 80)
+        clear_tracker("R1")
+        record_mode_played("R1", TeamId.TEAM_A, TrumpMode.EICHEL)
+
+        assert get_prediction("R1", "p1") == 80
+        assert TrumpMode.EICHEL not in get_available_modes("R1", TeamId.TEAM_A)
+
+        clear_room_variant_state("R1")
+
+        assert get_prediction("R1", "p1") == 0
+        assert TrumpMode.EICHEL in get_available_modes("R1", TeamId.TEAM_A)
 
 
 # ---------------------------------------------------------------------------
@@ -465,6 +490,62 @@ class TestPlayCard:
             if legal:
                 new_state = mgr.play_card("R1", "human1", legal[0])
                 assert new_state is not None
+
+    def test_human_play_does_not_auto_advance_bots(self):
+        """RoomManager.play_card should apply only the requested card."""
+        random.seed(10)
+        mgr = make_manager()
+        mgr.create_room("schieber", room_id="R1")
+        mgr.join_room("R1", make_player("human1"), seat_index=0)
+        mgr.fill_with_bots("R1", bot_class=RandomBot)
+        state = mgr.start_game("R1")
+        if state.phase == GamePhase.TRUMP_SELECT:
+            state = mgr.choose_trump("R1", "human1", TrumpMode.EICHEL)
+
+        engine = mgr.get_engine("R1")
+        legal = engine.variant.get_legal_moves(
+            engine.get_state_for("human1"), "human1"
+        )
+        state = mgr.play_card("R1", "human1", legal[0])
+
+        assert len(state.current_trick.entries) == 1
+        assert state.current_trick.entries[0].player_id == "human1"
+        assert mgr.is_bot("R1", state.current_player_id)
+
+    def test_play_one_bot_card_advances_exactly_one_bot(self):
+        random.seed(11)
+        mgr = make_manager()
+        mgr.create_room("schieber", room_id="R1")
+        mgr.join_room("R1", make_player("human1"), seat_index=0)
+        mgr.fill_with_bots("R1", bot_class=RandomBot)
+        state = mgr.start_game("R1")
+        if state.phase == GamePhase.TRUMP_SELECT:
+            state = mgr.choose_trump("R1", "human1", TrumpMode.EICHEL)
+
+        engine = mgr.get_engine("R1")
+        legal = engine.variant.get_legal_moves(
+            engine.get_state_for("human1"), "human1"
+        )
+        state = mgr.play_card("R1", "human1", legal[0])
+        bot_player = state.current_player_id
+
+        state = mgr.play_one_bot_card("R1")
+
+        assert state is not None
+        assert len(state.current_trick.entries) == 2
+        assert state.current_trick.entries[1].player_id == bot_player
+
+    def test_play_one_bot_card_returns_none_on_human_turn(self):
+        random.seed(12)
+        mgr = make_manager()
+        mgr.create_room("schieber", room_id="R1")
+        mgr.join_room("R1", make_player("human1"), seat_index=0)
+        mgr.fill_with_bots("R1", bot_class=RandomBot)
+        state = mgr.start_game("R1")
+        if state.phase == GamePhase.TRUMP_SELECT:
+            mgr.choose_trump("R1", "human1", TrumpMode.EICHEL)
+
+        assert mgr.play_one_bot_card("R1") is None
 
     def test_wrong_room_raises(self):
         with pytest.raises(KeyError):

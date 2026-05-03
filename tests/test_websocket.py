@@ -503,6 +503,65 @@ class TestWebSocketGameFlow:
                         Event.GAME_OVER,
                     )
 
+    def test_play_card_broadcasts_human_card_before_bot_cards(self, monkeypatch):
+        """The first event after a human card must show only that human card."""
+        random.seed(6)
+
+        from server.sockets import handlers as handlers_module
+        monkeypatch.setattr(handlers_module, "BOT_ACTION_DELAY_SECONDS", 0)
+        monkeypatch.setattr(handlers_module, "TRICK_COMPLETE_PAUSE_SECONDS", 0)
+        monkeypatch.setattr(handlers_module, "ROUND_START_PAUSE_SECONDS", 0)
+
+        client = make_client()
+        from server import main as main_module
+        from server.bots.random_bot import RandomBot
+        from server.shared.types import Player
+
+        room = main_module.room_manager.create_room("schieber")
+        rid = room.id
+        main_module.room_manager.join_room(
+            rid, Player(id="human1", name="Alice", seat_index=0), seat_index=0
+        )
+        main_module.room_manager.fill_with_bots(rid, bot_class=RandomBot)
+
+        with client.websocket_connect("/ws/human1") as ws:
+            ws_send(ws, {
+                "type": Event.START_GAME,
+                "room_id": rid,
+                "player_id": "human1",
+            })
+            msg = ws_recv(ws)
+            state = msg["state"]
+            assert state["phase"] == GamePhase.TRUMP_SELECT.value
+            assert state["trump_player_id"] == "human1"
+
+            ws_send(ws, {
+                "type": Event.CHOOSE_TRUMP,
+                "room_id": rid,
+                "player_id": "human1",
+                "trump_mode": TrumpMode.EICHEL.value,
+            })
+            msg = ws_recv(ws)
+            state = msg["state"]
+            assert state["phase"] == GamePhase.PLAYING.value
+            assert state["current_player_id"] == "human1"
+
+            my_player = next(p for p in state["players"] if p["id"] == "human1")
+            card = my_player["hand"][0]
+            ws_send(ws, {
+                "type": Event.PLAY_CARD,
+                "room_id": rid,
+                "player_id": "human1",
+                "card_suit": card["suit"],
+                "card_rank": card["rank"],
+            })
+
+            msg = ws_recv(ws)
+            assert msg["type"] == Event.STATE_UPDATED
+            trick_entries = msg["state"]["current_trick"]["entries"]
+            assert len(trick_entries) == 1
+            assert trick_entries[0]["player_id"] == "human1"
+
     def test_start_game_missing_room_returns_error(self):
         client = make_client()
         with client.websocket_connect("/ws/player1") as ws:

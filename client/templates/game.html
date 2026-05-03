@@ -390,31 +390,26 @@
     document.getElementById('game-root').style.display = 'grid';
   }
 
-  socket.on('game_started', (data) => {
+  socket.on('game_started', () => {
     showGameBoard();
-    onGameStarted(data);
     logEvent('Game started — good luck!');
   });
 
   socket.on('trick_complete', (data) => {
-    onTrickComplete(data);
     logEvent(`Trick → ${data.winner_id} (+${data.points}pts)`);
-    updateTricksCount();
+    setTimeout(updateTricksCount, 0);
   });
 
   socket.on('round_complete', (data) => {
-    onRoundComplete(data);
     logEvent(`Round complete. Scores: A=${data.scores?.team_a?.total ?? '?'} B=${data.scores?.team_b?.total ?? '?'}`);
   });
 
   socket.on('game_over', (data) => {
-    onGameOver(data);
     logEvent(`Game over. Winner: ${data.winner}`);
   });
 
-  socket.on('state_updated', (data) => {
-    onStateUpdated(data);
-    updateTricksCount();
+  socket.on('state_updated', () => {
+    setTimeout(updateTricksCount, 0);
   });
 
   function logEvent(msg) {

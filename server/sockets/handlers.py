@@ -21,6 +21,7 @@ Event flow:
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from fastapi import WebSocket
@@ -35,8 +36,18 @@ from server.shared.events import (
 )
 from server.shared.types import GamePhase
 from server.game.scoring import round_score_summary
+from server.shared.timing import (
+    BOT_ACTION_DELAY_SECONDS,
+    TRICK_COMPLETE_PAUSE_SECONDS,
+    ROUND_START_PAUSE_SECONDS,
+    MAX_AUTOMATED_ACTIONS_PER_RUN,
+)
 
 logger = logging.getLogger(__name__)
+
+# Rooms currently being advanced by the socket pacing loop. This prevents two
+# concurrent client messages from starting duplicate bot loops for the same room.
+_active_bot_runs: set[str] = set()
 
 
 # ---------------------------------------------------------------------------
@@ -347,23 +358,21 @@ async def _handle_start_game(
     """
     Host starts the game.
 
-    Flow:
-      1. start_game() — deals cards, possibly auto-resolves bot trump.
-      2. Broadcast game_started with personalised state to each player.
-      3. If phase is already PLAYING (bot picked trump), also broadcast
-         state_updated so clients render the playing board immediately.
+    The initial state is sent immediately. If a bot is already the active player
+    after dealing and optional bot trump selection, bot cards are then paced
+    through the same one-action-at-a-time loop as normal play.
     """
     room_id = data.get("room_id", "").strip().upper()
     if not room_id:
         raise ValueError("room_id is required.")
 
-    state = manager.start_game(room_id)
+    manager.start_game(room_id)
 
-    # Send personalised game_started to each player
     await connections.broadcast_state(
         room_id, manager,
         lambda s, pid: game_started_msg(s, pid),
     )
+    await _run_bot_turns_with_delay(room_id, manager, connections)
 
 
 async def _handle_choose_trump(
@@ -395,12 +404,13 @@ async def _handle_choose_trump(
             f"Valid modes: {[m.value for m in TrumpMode]}."
         )
 
-    state = manager.choose_trump(room_id, player_id, trump_mode)
+    manager.choose_trump(room_id, player_id, trump_mode)
 
     await connections.broadcast_state(
         room_id, manager,
         lambda s, pid: state_updated_msg(s, pid),
     )
+    await _run_bot_turns_with_delay(room_id, manager, connections)
 
 
 async def _handle_play_card(
@@ -411,13 +421,8 @@ async def _handle_play_card(
     connections: ConnectionManager,
 ) -> None:
     """
-    Player plays a card.
-
-    Flow:
-      1. Parse card from suit + rank strings.
-      2. play_card() — engine validates, applies move, advances bots.
-      3. Determine what happened (trick complete? round over? game over?)
-      4. Broadcast appropriate events to all players.
+    Player plays one card, broadcasts that exact action, then paces any
+    following bot turns one card at a time.
     """
     room_id = data.get("room_id", "").strip().upper()
     suit_str = data.get("card_suit", "")
@@ -426,7 +431,6 @@ async def _handle_play_card(
     if not room_id:
         raise ValueError("room_id is required.")
 
-    # Parse card
     try:
         suit = Suit(suit_str)
         rank = Rank(rank_str)
@@ -435,47 +439,134 @@ async def _handle_play_card(
             f"Invalid card: suit='{suit_str}' rank='{rank_str}'."
         )
 
-    card = Card(suit=suit, rank=rank)
-
-    # Snapshot completed tricks count before the play
     engine = manager.get_engine(room_id)
     if engine is None:
         raise KeyError(f"No active game in room '{room_id}'.")
 
     tricks_before = len(engine.state.completed_tricks)
-    phase_before = engine.state.phase
+    manager.play_card(room_id, player_id, Card(suit=suit, rank=rank))
 
-    # Apply the play (also advances bots)
-    state = manager.play_card(room_id, player_id, card)
+    should_continue = await _broadcast_after_card_action(
+        room_id, manager, connections, tricks_before
+    )
+    if should_continue:
+        await _run_bot_turns_with_delay(room_id, manager, connections)
 
-    tricks_after = len(state.completed_tricks)
-    trick_was_completed = tricks_after > tricks_before
 
-    # --- Broadcast: trick completed ---
-    if trick_was_completed:
+async def _sleep_if_needed(delay_seconds: float) -> None:
+    if delay_seconds > 0:
+        await asyncio.sleep(delay_seconds)
+
+
+async def _broadcast_after_card_action(
+    room_id: str,
+    manager: RoomManager,
+    connections: ConnectionManager,
+    completed_tricks_before: int,
+) -> bool:
+    """
+    Broadcast the visible result of one card play.
+
+    Returns True when automatic play may continue, and False when the game is
+    finished or the room no longer has an active engine.
+    """
+    engine = manager.get_engine(room_id)
+    if engine is None:
+        return False
+
+    state = engine.state
+    trick_completed = len(state.completed_tricks) > completed_tricks_before
+
+    if trick_completed:
         await connections.broadcast_state(
             room_id, manager,
             lambda s, pid: trick_complete_msg(s, pid),
         )
+        await _sleep_if_needed(TRICK_COMPLETE_PAUSE_SECONDS)
 
-    # --- Broadcast: round ended ---
     if state.phase in (GamePhase.SCORING, GamePhase.FINISHED):
         summary = round_score_summary(state)
         if state.game_over:
             await connections.broadcast_to_room(
                 room_id, game_over_msg(state, summary), manager
             )
-        else:
-            await connections.broadcast_to_room(
-                room_id, round_complete_msg(state, summary), manager
-            )
+            return False
+
+        await connections.broadcast_to_room(
+            room_id,
+            round_complete_msg(
+                state,
+                summary,
+                next_round_delay_seconds=ROUND_START_PAUSE_SECONDS,
+            ),
+            manager,
+        )
+        await _sleep_if_needed(ROUND_START_PAUSE_SECONDS)
+
+        manager.start_next_round(room_id)
+        await connections.broadcast_state(
+            room_id, manager,
+            lambda s, pid: state_updated_msg(s, pid),
+        )
+        return True
+
+    if not trick_completed:
+        await connections.broadcast_state(
+            room_id, manager,
+            lambda s, pid: state_updated_msg(s, pid),
+        )
+
+    return True
+
+
+async def _run_bot_turns_with_delay(
+    room_id: str,
+    manager: RoomManager,
+    connections: ConnectionManager,
+) -> None:
+    """
+    Advance bot turns one visible action at a time until a human must act,
+    the round/game ends, or a safety limit is reached.
+    """
+    if room_id in _active_bot_runs:
         return
 
-    # --- Broadcast: normal state update ---
-    await connections.broadcast_state(
-        room_id, manager,
-        lambda s, pid: state_updated_msg(s, pid),
-    )
+    _active_bot_runs.add(room_id)
+    try:
+        for _ in range(MAX_AUTOMATED_ACTIONS_PER_RUN):
+            engine = manager.get_engine(room_id)
+            if engine is None:
+                return
+
+            state = engine.state
+            if state.phase != GamePhase.PLAYING or not state.current_player_id:
+                return
+            if not manager.is_bot(room_id, state.current_player_id):
+                return
+
+            await _sleep_if_needed(BOT_ACTION_DELAY_SECONDS)
+
+            engine = manager.get_engine(room_id)
+            if engine is None:
+                return
+            tricks_before = len(engine.state.completed_tricks)
+            state_after = manager.play_one_bot_card(room_id)
+            if state_after is None:
+                return
+
+            should_continue = await _broadcast_after_card_action(
+                room_id, manager, connections, tricks_before
+            )
+            if not should_continue:
+                return
+
+        logger.warning(
+            "Stopped automated bot run for room %s after %s actions.",
+            room_id,
+            MAX_AUTOMATED_ACTIONS_PER_RUN,
+        )
+    finally:
+        _active_bot_runs.discard(room_id)
 
 
 async def _handle_list_rooms(

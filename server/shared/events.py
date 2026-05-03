@@ -176,17 +176,26 @@ def trick_complete_msg(state: GameState, for_player_id: str) -> dict:
     }
 
 
-def round_complete_msg(state: GameState, summary: dict) -> dict:
+def round_complete_msg(
+    state: GameState,
+    summary: dict,
+    next_round_delay_seconds: float | None = None,
+) -> dict:
     """
-    Broadcast when a full round (9 tricks) ends.
-    Includes the round score summary for the scoreboard.
+    Broadcast when a full round ends.
+
+    next_round_delay_seconds is optional metadata for the client countdown. It
+    does not affect game rules and can be omitted by tests or older callers.
     """
-    return {
+    msg = {
         "type": Event.ROUND_COMPLETE,
         "scores": summary,
         "round_number": state.round_number,
         "game_over": state.game_over,
     }
+    if next_round_delay_seconds is not None:
+        msg["next_round_delay_seconds"] = next_round_delay_seconds
+    return msg
 
 
 def game_over_msg(state: GameState, summary: dict) -> dict:

@@ -42,6 +42,9 @@ const TRUMP_MODES = [
   { key: 'Undeufe', label: 'Undeufe', icon: '▼' },
 ];
 
+const DEFAULT_TRICK_CLEAR_DELAY_MS = 2000;
+const DEFAULT_ROUND_COUNTDOWN_SECONDS = 10;
+
 // Seat arrangement: [bottom(me), right, top, left]
 // Maps seatIndex → grid position class
 const SEAT_POSITIONS = ['seat-bottom', 'seat-right', 'seat-top', 'seat-left'];
@@ -52,6 +55,14 @@ let gameState = null;     // latest GameState from server
 let myPlayerId = null;    // this client's player ID
 let roomId = null;        // current room ID
 let selectedCard = null;  // card the player has clicked (pending play)
+
+// Temporary visual state. The engine clears current_trick immediately after a
+// trick is scored, so the client keeps the completed trick visible from the
+// trick_complete event until the pacing pause expires.
+let trickDisplayOverride = null;
+let trickClearTimer = null;
+let roundCountdownTimer = null;
+let roundCountdownRemaining = null;
 
 // ─── Initialisation ──────────────────────────────────────────────────────────
 
@@ -83,6 +94,9 @@ function initGame(pid, rid) {
 
 function onGameStarted(data) {
   gameState = data.state;
+  selectedCard = null;
+  clearTrickDisplayOverride(false);
+  clearRoundCountdown();
   render();
   showToast('Game started!', 'info');
 }
@@ -90,6 +104,8 @@ function onGameStarted(data) {
 function onStateUpdated(data) {
   gameState = data.state;
   selectedCard = null;
+  clearTrickDisplayOverride(false);
+  if (gameState.phase !== 'scoring') clearRoundCountdown();
   render();
 }
 
@@ -97,20 +113,28 @@ function onTrickComplete(data) {
   gameState = data.state;
   selectedCard = null;
 
-  // Show brief winner flash
+  clearTrickDisplayOverride(false);
+  trickDisplayOverride = data.trick || null;
+  render();
+
   const winnerId = data.winner_id;
   const winner = gameState.players.find(p => p.id === winnerId);
   if (winner) {
     showTrickFlash(`${winner.id === myPlayerId ? 'You win' : winner.id + ' wins'} the trick (+${data.points}pts)`);
   }
 
-  // Short delay then re-render for next trick
-  setTimeout(() => render(), 1200);
+  trickClearTimer = setTimeout(() => {
+    trickDisplayOverride = null;
+    trickClearTimer = null;
+    render();
+  }, DEFAULT_TRICK_CLEAR_DELAY_MS);
 }
 
 function onRoundComplete(data) {
-  showRoundBanner(data.scores, data.round_number + 1);
-  // Server will start next round automatically; wait for state_updated
+  const delay = Number(data.next_round_delay_seconds ?? DEFAULT_ROUND_COUNTDOWN_SECONDS);
+  roundCountdownRemaining = Math.max(0, Math.ceil(delay));
+  showRoundBanner(data.scores, data.round_number + 1, roundCountdownRemaining);
+  renderStatus();
 }
 
 function onGameOver(data) {
@@ -214,17 +238,20 @@ function renderTrick() {
   const trickEl = document.querySelector('.trick-area');
   if (!trickEl) return;
 
-  const trick = gameState.current_trick;
+  const trick = trickDisplayOverride || gameState.current_trick;
+  const isHeldCompleteTrick = !!trickDisplayOverride;
   const players = orderedPlayers(gameState.players);
   const myIdx = players.findIndex(p => p.id === myPlayerId);
 
-  // Clear existing played cards
   trickEl.querySelectorAll('.trick-card-slot').forEach(el => el.remove());
+  trickEl.classList.toggle('trick-hold', isHeldCompleteTrick);
 
-  if (!trick || !trick.entries || trick.entries.length === 0) return;
+  if (myIdx === -1 || !trick || !trick.entries || trick.entries.length === 0) return;
 
   trick.entries.forEach((entry) => {
     const playerIdx = players.findIndex(p => p.id === entry.player_id);
+    if (playerIdx === -1) return;
+
     // Position relative to me (0 = me = bottom, 1 = right, 2 = top, 3 = left)
     const relIdx = ((playerIdx - myIdx) + 4) % 4;
     const slotCls = `trick-slot-${relIdx}`;
@@ -375,7 +402,9 @@ function renderStatus() {
   }
 
   if (phase === 'scoring') {
-    el.textContent = 'Round complete — next round starting…';
+    el.textContent = roundCountdownRemaining !== null
+      ? `Round complete — next round starts in ${roundCountdownRemaining}s…`
+      : 'Round complete — next round starting…';
     el.className = 'status-bar';
     return;
   }
@@ -446,9 +475,10 @@ function showTrickFlash(message) {
 
 // ─── Round complete banner ───────────────────────────────────────────────────
 
-function showRoundBanner(scores, roundNum) {
+function showRoundBanner(scores, roundNum, countdownSeconds = DEFAULT_ROUND_COUNTDOWN_SECONDS) {
   const existing = document.getElementById('round-banner');
   if (existing) existing.remove();
+  clearRoundCountdown(false);
 
   const banner = document.createElement('div');
   banner.id = 'round-banner';
@@ -456,6 +486,7 @@ function showRoundBanner(scores, roundNum) {
 
   const a = scores['team_a'] || { round: 0, total: 0 };
   const b = scores['team_b'] || { round: 0, total: 0 };
+  roundCountdownRemaining = Math.max(0, Math.ceil(countdownSeconds));
 
   banner.innerHTML = `
     <span style="font-family:var(--font-display);font-weight:700;color:var(--gold-accent)">
@@ -465,13 +496,54 @@ function showRoundBanner(scores, roundNum) {
       Team A: <strong>${a.total}</strong> (+${a.round}) &nbsp;·&nbsp;
       Team B: <strong>${b.total}</strong> (+${b.round})
     </span>
-    <button class="btn btn-sm btn-secondary" onclick="document.getElementById('round-banner').remove()">
+    <span class="round-countdown" id="round-countdown">
+      Next round in ${roundCountdownRemaining}s
+    </span>
+    <button class="btn btn-sm btn-secondary" onclick="clearRoundCountdown()">
       Dismiss
     </button>
   `;
 
   document.body.appendChild(banner);
-  setTimeout(() => banner.remove(), 6000);
+  updateRoundCountdownLabel();
+  roundCountdownTimer = setInterval(() => {
+    if (roundCountdownRemaining === null) return;
+    roundCountdownRemaining = Math.max(0, roundCountdownRemaining - 1);
+    updateRoundCountdownLabel();
+    renderStatus();
+    if (roundCountdownRemaining <= 0) {
+      clearRoundCountdown();
+    }
+  }, 1000);
+}
+
+function updateRoundCountdownLabel() {
+  const el = document.getElementById('round-countdown');
+  if (!el || roundCountdownRemaining === null) return;
+  el.textContent = roundCountdownRemaining > 0
+    ? `Next round in ${roundCountdownRemaining}s`
+    : 'Starting next round…';
+}
+
+function clearRoundCountdown(removeBanner = true) {
+  if (roundCountdownTimer) {
+    clearInterval(roundCountdownTimer);
+    roundCountdownTimer = null;
+  }
+  roundCountdownRemaining = null;
+  if (removeBanner) {
+    const banner = document.getElementById('round-banner');
+    if (banner) banner.remove();
+  }
+}
+
+function clearTrickDisplayOverride(renderAfterClear = true) {
+  if (trickClearTimer) {
+    clearTimeout(trickClearTimer);
+    trickClearTimer = null;
+  }
+  trickDisplayOverride = null;
+  if (renderAfterClear) render();
 }
 
 // ─── Game over overlay ────────────────────────────────────────────────────────

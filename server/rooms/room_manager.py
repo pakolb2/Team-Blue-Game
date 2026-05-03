@@ -11,30 +11,16 @@ from typing import Optional
 
 from server.shared.types import Card, Player, Room, GameState, TrumpMode
 from server.game.engine import GameEngine
-from server.game.variants.base import BaseVariant
-from server.game.variants.schieber import Schieber
-from server.game.variants.differenzler import Differenzler, clear_predictions
-from server.game.variants.coiffeur import Coiffeur, clear_tracker
+from server.game.variants.registry import (
+    VARIANT_REGISTRY,
+    clear_room_variant_state,
+    get_variant,
+)
 from server.game.rules import validate_game_start
 from server.bots.random_bot import RandomBot
 from server.bots.rule_based_bot import RuleBasedBot
 from server.bots.base import BaseBot
 from server.shared.constants import MAX_PLAYERS
-
-
-VARIANT_REGISTRY: dict[str, BaseVariant] = {
-    "schieber": Schieber(),
-    "differenzler": Differenzler(),
-    "coiffeur": Coiffeur(),
-}
-
-
-def get_variant(name: str) -> BaseVariant:
-    variant = VARIANT_REGISTRY.get(name.lower())
-    if variant is None:
-        available = ", ".join(VARIANT_REGISTRY.keys())
-        raise ValueError(f"Unknown variant '{name}'. Available: {available}.")
-    return variant
 
 
 class RoomManager:
@@ -87,8 +73,7 @@ class RoomManager:
         self._engines.pop(room_id, None)
         self._bots.pop(room_id, None)
         self._swap_requests.pop(room_id, None)
-        clear_predictions(room_id)
-        clear_tracker(room_id)
+        clear_room_variant_state(room_id)
         if room:
             for player in room.players:
                 self._player_room.pop(player.id, None)
@@ -384,8 +369,7 @@ class RoomManager:
         validate_game_start(room)
         variant = get_variant(room.variant_name or "schieber")
 
-        clear_predictions(room_id)
-        clear_tracker(room_id)
+        clear_room_variant_state(room_id)
 
         engine = GameEngine.for_room(room_id, seated_players, variant)
         self._engines[room_id] = engine
@@ -404,10 +388,43 @@ class RoomManager:
         return state
 
     def play_card(self, room_id: str, player_id: str, card: Card) -> GameState:
+        """
+        Apply exactly one explicit card play.
+
+        Bot advancement is intentionally not performed here. WebSocket pacing
+        decides when to call play_one_bot_card() so every individual action can
+        be broadcast and rendered before the next one happens.
+        """
         engine = self._get_engine_or_raise(room_id)
-        engine.play_card(player_id, card)
-        self._advance_bots(room_id, engine)
-        return engine.state
+        return engine.play_card(player_id, card)
+
+    def play_one_bot_card(self, room_id: str) -> GameState | None:
+        """
+        Let the current bot player play exactly one legal card.
+
+        Returns the updated state when a bot action was made, or None when the
+        game is not in a bot-controlled PLAYING turn. This keeps bot orchestration
+        compatible with every variant because legal moves still come from the
+        active variant attached to the engine.
+        """
+        from server.shared.types import GamePhase
+
+        engine = self._get_engine_or_raise(room_id)
+        state = engine.state
+        if state.phase != GamePhase.PLAYING or not state.current_player_id:
+            return None
+
+        bot = self.get_bot(room_id, state.current_player_id)
+        if bot is None:
+            return None
+
+        player_view = engine.get_state_for(state.current_player_id)
+        legal = engine.variant.get_legal_moves(player_view, state.current_player_id)
+        if not legal:
+            return None
+
+        card = bot.choose_card(player_view, legal)
+        return engine.play_card(state.current_player_id, card)
 
     def start_next_round(self, room_id: str) -> GameState:
         engine = self._get_engine_or_raise(room_id)
@@ -446,18 +463,17 @@ class RoomManager:
             return state
 
         variant = engine.variant
-        if isinstance(variant, Coiffeur):
+        mode = None
+        get_available_modes_for_team = getattr(variant, "get_available_modes_for_team", None)
+        if callable(get_available_modes_for_team):
             trump_team = state.get_player_team(trump_pid)
             if trump_team:
-                available = get_available_modes_for_coiffeur(room_id, trump_team)
+                available = get_available_modes_for_team(room_id, trump_team)
                 if available:
                     import random
                     mode = random.choice(available)
-                else:
-                    mode = bot.choose_trump(engine.get_state_for(trump_pid))
-            else:
-                mode = bot.choose_trump(engine.get_state_for(trump_pid))
-        else:
+
+        if mode is None:
             mode = bot.choose_trump(engine.get_state_for(trump_pid))
 
         return engine.choose_trump(trump_pid, mode)
@@ -466,29 +482,22 @@ class RoomManager:
         from server.shared.types import GamePhase
         state = engine.state
         if state.phase == GamePhase.PLAYING:
-            variant = engine.variant
-            if isinstance(variant, Coiffeur):
-                variant.on_round_start(state)
+            on_round_start = getattr(engine.variant, "on_round_start", None)
+            if callable(on_round_start):
+                on_round_start(state)
 
     def _advance_bots(self, room_id: str, engine: GameEngine) -> None:
+        """
+        Legacy synchronous bot drain used only by direct test helpers.
+
+        Normal gameplay must use play_one_bot_card() through the WebSocket
+        pacing layer so clients can see every card play separately.
+        """
         from server.shared.types import GamePhase
         max_iterations = 40
         for _ in range(max_iterations):
-            state = engine.state
-            if state.phase not in (GamePhase.PLAYING,):
+            if engine.state.phase != GamePhase.PLAYING:
                 break
-            current_pid = state.current_player_id
-            bot = self.get_bot(room_id, current_pid)
-            if bot is None:
+            if self.play_one_bot_card(room_id) is None:
                 break
-            player_view = engine.get_state_for(current_pid)
-            legal = engine.variant.get_legal_moves(player_view, current_pid)
-            if not legal:
-                break
-            card = bot.choose_card(player_view, legal)
-            engine.play_card(current_pid, card)
 
-
-def get_available_modes_for_coiffeur(room_id: str, team) -> list[TrumpMode]:
-    from server.game.variants.coiffeur import get_available_modes
-    return get_available_modes(room_id, team)

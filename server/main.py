@@ -19,7 +19,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
 
-from server.rooms.room_manager import RoomManager, VARIANT_REGISTRY
+from server.rooms.room_manager import RoomManager
+from server.game.variants.registry import VARIANT_REGISTRY
 from server.sockets.handlers import ConnectionManager, handle_event
 from server.lan_discovery import router as lan_router, start_udp_broadcast
 

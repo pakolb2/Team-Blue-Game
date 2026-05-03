@@ -384,6 +384,9 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing:
   position: absolute;
   transition: transform .3s cubic-bezier(.34,1.56,.64,1), opacity .3s;
 }
+.trick-area.trick-hold .trick-card-slot {
+  filter: drop-shadow(0 0 10px rgba(232,184,75,.18));
+}
 
 /* Slot positions for 4 players: bottom, right, top, left */
 .trick-slot-0 { bottom: 8px;  left: 50%; transform: translateX(-50%); }
@@ -1004,9 +1007,16 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing:
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 1rem;
   z-index: 50;
   animation: slideDown .3s cubic-bezier(.34,1.56,.64,1);
   box-shadow: 0 8px 32px rgba(0,0,0,.5);
+}
+.round-countdown {
+  font-family: var(--font-mono);
+  font-size: .8rem;
+  color: var(--gold-accent);
+  white-space: nowrap;
 }
 
 @keyframes slideDown {
