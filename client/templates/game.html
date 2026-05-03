@@ -105,8 +105,18 @@
       <button class="btn btn-secondary" onclick="copyRoomCode()">
         Copy Code
       </button>
+      <button class="btn btn-secondary" onclick="addBot('random')">
+        Add Random Bot
+      </button>
+      <button class="btn btn-secondary" onclick="addBot('rule_based')">
+        Add Rule-Based Bot
+      </button>
       <button class="btn btn-primary" id="start-btn" onclick="startGame()" disabled>
         Start Game
+      </button>
+      <!-- NEW: Leave Room button -->
+      <button class="btn btn-secondary" onclick="leaveRoom()">
+        Leave Room
       </button>
     </div>
 
@@ -276,6 +286,23 @@
     const btn = event.target;
     btn.textContent = 'Copied!';
     setTimeout(() => btn.textContent = 'Copy Code', 1500);
+  }
+
+  function leaveRoom() {
+    if (confirm('Are you sure you want to leave the room?')) {
+      socket.send('leave_room', {
+        room_id: ROOM_ID,
+        player_id: PLAYER_ID,
+      });
+      window.location.href = '/';
+    }
+  }
+
+  function addBot(botType) {
+    socket.send('add_bot', {
+      room_id: ROOM_ID,
+      bot_type: botType,
+    });
   }
 
   // ── Switch from waiting overlay to game board ─────────────────────────────

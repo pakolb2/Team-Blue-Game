@@ -151,6 +151,7 @@ async def handle_event(
         Event.CHOOSE_TRUMP: _handle_choose_trump,
         Event.PLAY_CARD:    _handle_play_card,
         Event.LIST_ROOMS:   _handle_list_rooms,
+        "add_bot":          _handle_add_bot,
     }
 
     handler = handlers.get(event_type)
@@ -239,6 +240,26 @@ async def _handle_leave_room(
         room_id, room_updated_msg(room), manager
     )
 
+async def _handle_add_bot(
+    websocket: WebSocket,
+    player_id: str,
+    data: dict,
+    manager: RoomManager,
+    connections: ConnectionManager,
+) -> None:
+    room_id = data.get("room_id", "").strip().upper()
+    bot_type = data.get("bot_type", "rule_based")
+
+    if not room_id:
+        raise ValueError("room_id is required.")
+
+    room = manager.add_bot(room_id, bot_type)
+
+    await connections.broadcast_to_room(
+        room_id,
+        room_updated_msg(room),
+        manager,
+    )
 
 async def _handle_start_game(
     websocket: WebSocket,

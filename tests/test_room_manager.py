@@ -321,6 +321,36 @@ class TestFillWithBots:
         bots = mgr._bots["R1"]
         assert all(isinstance(b, RandomBot) for b in bots.values())
 
+class TestAddBot:
+    def test_add_random_bot_adds_one_bot(self):
+        mgr = make_manager()
+        mgr.create_room("schieber", room_id="R1")
+        mgr.join_room("R1", make_player("p1"))
+
+        room = mgr.add_bot("R1", "random")
+
+        assert len(room.players) == 2
+        assert room.players[-1].is_bot
+        assert isinstance(mgr.get_bot("R1", room.players[-1].id), RandomBot)
+
+    def test_add_rule_based_bot_adds_one_bot(self):
+        mgr = make_manager()
+        mgr.create_room("schieber", room_id="R1")
+
+        room = mgr.add_bot("R1", "rule_based")
+
+        assert len(room.players) == 1
+        assert room.players[0].is_bot
+        assert isinstance(mgr.get_bot("R1", room.players[0].id), RuleBasedBot)
+
+    def test_add_bot_full_room_raises(self):
+        mgr = make_manager()
+        mgr.create_room("schieber", room_id="R1")
+        for i in range(4):
+            mgr.join_room("R1", make_player(f"p{i}"))
+
+        with pytest.raises(ValueError, match="full"):
+            mgr.add_bot("R1", "random")
 
 # ---------------------------------------------------------------------------
 # start_game
@@ -349,12 +379,17 @@ class TestStartGame:
         total = sum(len(p.hand) for p in engine.state.players)
         assert total == 36
 
-    def test_not_enough_players_raises(self):
+    def test_start_game_auto_fills_missing_players_with_bots(self):
         mgr = make_manager()
         mgr.create_room("schieber", room_id="R1")
         mgr.join_room("R1", make_player("p1"))
-        with pytest.raises(ValueError, match="Need 4"):
-            mgr.start_game("R1")
+
+        state = mgr.start_game("R1")
+
+        room = mgr.get_room("R1")
+        assert len(room.players) == 4
+        assert sum(1 for p in room.players if p.is_bot) == 3
+        assert state.phase in (GamePhase.TRUMP_SELECT, GamePhase.PLAYING)
 
     def test_bot_picks_trump_automatically(self):
         """If all players are bots, phase should advance past TRUMP_SELECT."""

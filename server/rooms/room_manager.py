@@ -216,12 +216,53 @@ class RoomManager:
     def is_bot(self, room_id: str, player_id: str) -> bool:
         return player_id in self._bots.get(room_id, {})
 
+    def add_bot(
+        self,
+        room_id: str,
+        bot_type: str = "rule_based",
+    ) -> Room:
+        room = self.get_room(room_id)
+
+        if room.is_active:
+            raise ValueError(f"Cannot add bot to room '{room_id}': game already started.")
+
+        if room.is_full:
+            raise ValueError(f"Cannot add bot to room '{room_id}': room is full.")
+
+        if bot_type == "random":
+            bot_class = RandomBot
+            bot_name = "Random Bot"
+        elif bot_type == "rule_based":
+            bot_class = RuleBasedBot
+            bot_name = "Rule Bot"
+        else:
+            raise ValueError(f"Unknown bot type: {bot_type}")
+
+        bot_index = len(self._bots[room_id]) + 1
+        bot_id = f"bot_{room_id}_{bot_index}"
+
+        bot = bot_class(bot_id)
+        bot_player = Player(
+            id=bot_id,
+            name=f"{bot_name} {bot_index}",
+            is_bot=True,
+        )
+
+        room = self.join_room(room_id, bot_player)
+        self._bots[room_id][bot_id] = bot
+        return room
+
     # ------------------------------------------------------------------
     # Game lifecycle
     # ------------------------------------------------------------------
 
     def start_game(self, room_id: str) -> GameState:
         room = self.get_room(room_id)
+
+        # Only fill remaining seats, not override manual bots
+        if len(room.players) < room.max_players:
+            room = self.fill_with_bots(room_id)
+
         validate_game_start(room)
 
         variant = get_variant(room.variant_name or "schieber")
