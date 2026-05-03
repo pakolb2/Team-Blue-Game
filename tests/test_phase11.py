@@ -170,6 +170,9 @@ class TestI18nTranslationKeys:
             'err_no_room', 'err_not_turn',
         ]
 
+    def _load_i18n_js(self):
+        return open('client/static/js/i18n.js', encoding='utf-8').read()
+
     def test_i18n_js_exists(self):
         import os
         path = 'client/static/js/i18n.js'
@@ -178,25 +181,25 @@ class TestI18nTranslationKeys:
         assert os.path.exists(output_path), "i18n.js not found"
 
     def test_i18n_js_has_four_locales(self):
-        content = open('client/static/js/i18n.js').read()
+        content = self._load_i18n_js()
         for locale in ['en:', 'de:', 'fr:', 'it:']:
             assert locale in content, f"Locale '{locale}' not found in i18n.js"
 
     def test_i18n_js_has_trump_modes(self):
-        content = open('client/static/js/i18n.js').read()
+        content = self._load_i18n_js()
         for mode in ['trump_eichel', 'trump_schilte', 'trump_schelle',
                      'trump_rose', 'trump_obenabe', 'trump_undeufe']:
             assert mode in content, f"Trump mode key '{mode}' missing from i18n.js"
 
     def test_i18n_js_has_game_events(self):
-        content = open('client/static/js/i18n.js').read()
+        content = self._load_i18n_js()
         for key in ['game_started', 'trick_won', 'round_complete',
                     'victory', 'game_over', 'return_lobby']:
             assert key in content, f"Key '{key}' missing from i18n.js"
 
     def test_i18n_js_has_all_four_languages(self):
         """Verify DE, FR, IT sections contain the trump translation keys."""
-        content = open('client/static/js/i18n.js').read()
+        content = self._load_i18n_js()
         # German-specific strings
         assert 'Trumpf wählen' in content
         # French-specific strings (apostrophe is escaped as \' in JS)
@@ -205,13 +208,13 @@ class TestI18nTranslationKeys:
         assert 'Scegli la briscola' in content
 
     def test_i18n_js_has_error_keys(self):
-        content = open('client/static/js/i18n.js').read()
+        content = self._load_i18n_js()
         for key in ['err_no_room', 'err_not_turn', 'err_illegal', 'err_internal']:
             assert key in content
 
     def test_i18n_js_has_placeholder_substitution_syntax(self):
         """Keys with variables should use {varname} syntax."""
-        content = open('client/static/js/i18n.js').read()
+        content = self._load_i18n_js()
         # These keys should contain {player}, {pts}, {n} etc.
         assert '{player}' in content
         assert '{pts}' in content
