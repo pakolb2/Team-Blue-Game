@@ -153,7 +153,7 @@ LAST_TRICK_BONUS: int = 5
 TOTAL_ROUND_POINTS: int = TOTAL_CARD_POINTS + LAST_TRICK_BONUS  # 157
 
 # Bonus for taking all 9 tricks ("Match")
-MATCH_BONUS: int = 100
+MATCH_BONUS: int = 200
 
 # ---------------------------------------------------------------------------
 # Game rules
