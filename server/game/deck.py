@@ -31,6 +31,14 @@ def build_deck() -> list[Card]:
     Build a complete, ordered 36-card Swiss Jass deck.
     Order: all ranks of Eichel, then Schilte, then Schelle, then Rose.
     The order is deterministic so tests can rely on it before shuffling.
+    
+    assert:
+        - The deck contains exactly DECK_SIZE cards.
+        - Each card is unique (no duplicates).
+        - All suits and ranks are represented correctly.
+
+    return: 
+        A list of Card objects representing the full deck.
     """
     deck = [Card(suit=suit, rank=rank) for suit in SUITS for rank in RANKS]
     assert len(deck) == DECK_SIZE, f"Expected {DECK_SIZE} cards, got {len(deck)}"
@@ -41,6 +49,12 @@ def shuffle(deck: list[Card]) -> list[Card]:
     """
     Return a new shuffled copy of the deck.
     The original list is never mutated.
+
+        Args:
+            deck: A list of Card objects to shuffle.
+
+    Returns:
+        A new list of Card objects representing the shuffled deck.
     """
     shuffled = list(deck)   # shallow copy — Cards are frozen/immutable so this is safe
     random.shuffle(shuffled)
