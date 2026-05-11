@@ -451,7 +451,7 @@ function showTrumpPicker() {
           const icon = noImg
             ? `<span class="trump-option-icon">${m.icon}</span>`
             : `<img src="${imgSrc}" alt="${m.label}"
-                    style="width:56px;height:56px;object-fit:contain"
+                    style="width:110px;height:110px;object-fit:contain"
                     onerror="this.outerHTML='<span class=\\'trump-option-icon\\'>${m.icon}</span>'" />`;
           return `
             <div class="trump-option" data-mode="${m.key}">
