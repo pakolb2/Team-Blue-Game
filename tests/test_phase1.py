@@ -334,7 +334,7 @@ class TestEnums:
 
     def test_all_ranks_present(self):
         rank_values = {r.value for r in Rank}
-        assert rank_values == {"6", "7", "8", "9", "10", "J", "Q", "K", "A"}
+        assert rank_values == {"6", "7", "8", "9", "10", "Under", "Ober", "König", "A"}
 
     def test_all_trump_modes_present(self):
         assert len(TrumpMode) == 6

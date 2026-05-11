@@ -26,9 +26,9 @@ class Rank(str, Enum):
     EIGHT = "8"
     NINE  = "9"
     TEN   = "10"
-    JACK  = "J"
-    QUEEN = "Q"
-    KING  = "K"
+    JACK  = "Under"
+    QUEEN = "Ober"
+    KING  = "König"
     ACE   = "A"
 
 

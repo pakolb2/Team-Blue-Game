@@ -451,7 +451,7 @@ function showTrumpPicker() {
           const icon = noImg
             ? `<span class="trump-option-icon">${m.icon}</span>`
             : `<img src="${imgSrc}" alt="${m.label}"
-                    style="width:110px;height:110px;object-fit:contain"
+                    style="width:150px;height:150px;object-fit:contain;display:block;margin:auto"
                     onerror="this.outerHTML='<span class=\\'trump-option-icon\\'>${m.icon}</span>'" />`;
           return `
             <div class="trump-option" data-mode="${m.key}">
@@ -636,20 +636,14 @@ function showToast(message, type = 'info') {
 
 function buildCardHTML(card, extraClasses = []) {
   const { suit, rank } = card;
-  const sym = SUIT_SYMBOLS[suit] || suit[0];
   const allClasses = ['card', `suit-${suit}`, ...extraClasses].join(' ');
+  const imgSrc = `/static/assets/cards/${encodeURIComponent(rank)}_${encodeURIComponent(suit)}.png`;
 
   return `
     <div class="${allClasses}" title="${rank} of ${suit}">
-      <div class="card-rank-top">
-        <span>${escHtml(rank)}</span>
-        <span class="card-suit-icon">${sym}</span>
-      </div>
-      <div class="card-suit-center">${sym}</div>
-      <div class="card-rank-bot">
-        <span>${escHtml(rank)}</span>
-        <span class="card-suit-icon">${sym}</span>
-      </div>
+      <img src="${imgSrc}" alt="${escHtml(rank)} of ${escHtml(suit)}"
+           style="width:100%;height:100%;object-fit:contain;border-radius:inherit"
+           onerror="this.style.display='none'" />
     </div>
   `;
 }

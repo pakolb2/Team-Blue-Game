@@ -609,7 +609,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing:
   align-items: center;
   gap: .4rem;
   padding: 1rem;
-  min-height: 150px;
+  min-height: 200px;
   justify-content: center;
   background: rgba(0,0,0,.25);
   border: 1px solid rgba(255,255,255,.1);
@@ -623,7 +623,7 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing:
   transform: translateY(-2px);
 }
 
-.trump-option-icon { font-size: 2rem; }
+.trump-option-icon { font-size: 5rem; }
 .trump-option-label {
   font-family: var(--font-display);
   font-size: .85rem;
