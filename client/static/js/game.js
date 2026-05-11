@@ -430,12 +430,14 @@ function showTrumpPicker() {
   if (overlay) return; // already shown
 
   const me = gameState.players.find(p => p.id === myPlayerId);
-  const handHTML = (me && me.hand)
-    ? me.hand.map(card => `
-        <div class="card-wrap trump-preview-card">
-          ${buildCardHTML(card, ['not-turn'])}
-        </div>`).join('')
-    : '';
+  const hand = (me && me.hand) ? me.hand : [];
+  const makeCard = card => `<div class="card-wrap trump-preview-card">${buildCardHTML(card, ['not-turn'])}</div>`;
+  const row1 = hand.slice(0, 5).map(makeCard).join('');
+  const row2 = hand.slice(5).map(makeCard).join('');
+  const handHTML = hand.length ? `
+    <div class="trump-hand-row">${row1}</div>
+    <div class="trump-hand-row trump-hand-row--bottom">${row2}</div>
+  ` : '';
 
   overlay = document.createElement('div');
   overlay.id = 'trump-picker';

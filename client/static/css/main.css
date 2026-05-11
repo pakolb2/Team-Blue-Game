@@ -568,14 +568,30 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing:
 
 .trump-picker-hand {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: .5rem;
+  flex-direction: column;
+  align-items: center;
   margin-bottom: 1.25rem;
-  padding: .75rem;
+  padding: .75rem .75rem 1rem;
   background: rgba(0,0,0,.2);
   border-radius: var(--radius-md);
   border: 1px solid rgba(255,255,255,.06);
+}
+
+.trump-hand-row {
+  display: flex;
+  justify-content: center;
+  gap: .4rem;
+}
+
+.trump-hand-row--bottom {
+  margin-top: -30px;
+  position: relative;
+  z-index: 2;
+}
+
+.trump-hand-row:first-child {
+  position: relative;
+  z-index: 1;
 }
 
 .trump-preview-card .card {
