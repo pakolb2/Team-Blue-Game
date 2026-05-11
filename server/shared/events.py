@@ -57,6 +57,7 @@ class Event:
     PLAY_CARD    = "play_card"
     LIST_ROOMS   = "list_rooms"
     ADD_BOT      = "add_bot"
+    REMOVE_BOT   = "remove_bot"
     MOVE_SEAT    = "move_seat"
     REQUEST_SWAP = "request_swap"
     ACCEPT_SWAP  = "accept_swap"

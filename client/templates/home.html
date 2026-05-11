@@ -44,7 +44,10 @@
 
   <!-- Open rooms list -->
   <div class="panel">
-    <div class="panel-title">Open Rooms</div>
+    <div class="panel-title" style="display:flex;align-items:center;justify-content:space-between">
+      Open Rooms
+      <button class="btn btn-secondary btn-sm" onclick="refreshRooms()" id="refresh-btn">Refresh</button>
+    </div>
     <div class="room-list" id="room-list">
       {% if open_rooms %}
         {% for room in open_rooms %}
@@ -107,6 +110,33 @@
     saveName();
     localStorage.setItem('jass_room_id', roomId);
     location.href = `/game/${roomId}`;
+  }
+
+  async function refreshRooms() {
+    const btn = document.getElementById('refresh-btn');
+    btn.textContent = '…';
+    btn.disabled = true;
+    try {
+      const resp = await fetch('/api/rooms');
+      const data = await resp.json();
+      const list = document.getElementById('room-list');
+      if (data.rooms.length === 0) {
+        list.innerHTML = '<div class="room-empty">No open rooms yet.<br>Create one above!</div>';
+      } else {
+        list.innerHTML = data.rooms.map(r => `
+          <div class="room-item">
+            <span class="room-id">${r.id}</span>
+            <span class="room-meta">${r.player_count}/${r.max_players} players</span>
+            <button class="btn btn-secondary btn-sm" onclick="joinRoom('${r.id}')">Join</button>
+          </div>
+        `).join('');
+      }
+    } catch (e) {
+      showLobbyError('Could not refresh rooms.');
+    } finally {
+      btn.textContent = 'Refresh';
+      btn.disabled = false;
+    }
   }
 
   function showLobbyError(msg) {

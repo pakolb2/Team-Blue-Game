@@ -297,6 +297,7 @@
         </div>
         <div class="seat-actions">
           ${player.id !== PLAYER_ID && player.is_bot ? `<button class="btn btn-secondary btn-sm" data-action="move" data-seat="${seatIndex}">Swap with bot</button>` : ''}
+          ${player.is_bot ? `<button class="btn btn-secondary btn-sm" data-action="remove-bot" data-botid="${escAttr(player.id)}">Remove</button>` : ''}
           ${player.id !== PLAYER_ID && !player.is_bot ? `<button class="btn btn-secondary btn-sm" data-action="request-swap" data-target="${escAttr(player.id)}">Request swap</button>` : ''}
         </div>
       `;
@@ -312,6 +313,7 @@
   function handleSeatAction(ds) {
     if (ds.action === 'bot-random') addBot('random', Number(ds.seat));
     if (ds.action === 'bot-rule') addBot('rule_based', Number(ds.seat));
+    if (ds.action === 'remove-bot') removeBot(ds.botid);
     if (ds.action === 'move') moveToSeat(Number(ds.seat));
     if (ds.action === 'request-swap') requestSwap(ds.target);
     if (ds.action === 'accept-swap') acceptSwap(ds.requester);
@@ -361,6 +363,13 @@
       room_id: ROOM_ID,
       bot_type: botType,
       seat_index: seatIndex,
+    });
+  }
+
+  function removeBot(botPlayerId) {
+    socket.send('remove_bot', {
+      room_id: ROOM_ID,
+      bot_player_id: botPlayerId,
     });
   }
 

@@ -346,6 +346,19 @@ class RoomManager:
             return self._add_bot_with_class(room_id, RuleBasedBot, "Rule Bot", seat_index)
         raise ValueError(f"Unknown bot type: {bot_type}")
 
+    def remove_bot(self, room_id: str, bot_player_id: str) -> Room:
+        room = self.get_room(room_id)
+        if room.is_active:
+            raise ValueError(f"Cannot remove bot from room '{room_id}': game already started.")
+        if not self.is_bot(room_id, bot_player_id):
+            raise ValueError(f"Player '{bot_player_id}' is not a bot.")
+        updated_players = [p for p in room.players if p.id != bot_player_id]
+        updated_room = room.model_copy(update={"players": updated_players})
+        self._rooms[room_id] = updated_room
+        self._bots.get(room_id, {}).pop(bot_player_id, None)
+        self._player_room.pop(bot_player_id, None)
+        return updated_room
+
     def get_bot(self, room_id: str, player_id: str) -> Optional[BaseBot]:
         return self._bots.get(room_id, {}).get(player_id)
 
