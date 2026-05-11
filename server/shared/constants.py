@@ -189,6 +189,8 @@ SUIT_TRUMP_MODES: list[TrumpMode] = [
 NO_TRUMP_MODES: list[TrumpMode] = [
     TrumpMode.OBENABE,
     TrumpMode.UNDEUFE,
+    TrumpMode.SLALOM,
+    TrumpMode.COIFFEUR,
 ]
 
 # Map from TrumpMode to Suit (only valid for SUIT_TRUMP_MODES)

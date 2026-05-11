@@ -33,13 +33,15 @@ class Rank(str, Enum):
 
 
 class TrumpMode(str, Enum):
-    """The 6 ways trump can be chosen in Schieber."""
-    EICHEL  = "Eichel"
-    SCHILTE = "Schilte"
-    SCHELLE = "Schelle"
-    ROSE    = "Rose"
-    OBENABE = "Obenabe"
-    UNDEUFE = "Undeufe"
+    """The 8 ways trump can be chosen (6 standard + Slalom + Coiffeur)."""
+    EICHEL   = "Eichel"
+    SCHILTE  = "Schilte"
+    SCHELLE  = "Schelle"
+    ROSE     = "Rose"
+    OBENABE  = "Obenabe"
+    UNDEUFE  = "Undeufe"
+    SLALOM   = "Slalom"    # alternates Obenabe/Undeufe each trick
+    COIFFEUR = "Coiffeur"  # like Obenabe, but always doubles choosing team's points
 
 
 class GamePhase(str, Enum):

@@ -42,17 +42,17 @@ from __future__ import annotations
 from server.game.variants.base import BaseVariant
 from server.game.variants.schieber import Schieber
 from server.shared.types import (
-    Card, GameState, Trick, TeamId, TrumpMode,
+    Card, GameState, Trick, TeamId, TrumpMode, Suit,
 )
 from server.shared.constants import (
     LAST_TRICK_BONUS, MATCH_BONUS, WINNING_SCORE,
 )
 
-# All 6 Jass trump modes (each team must play each once)
+# All 8 trump modes for Coiffeur (each team must play each once)
 COIFFEUR_MODES: list[TrumpMode] = list(TrumpMode)
 
-# Total rounds: 2 teams × 6 modes = 12
-COIFFEUR_TOTAL_ROUNDS: int = 12
+# Total rounds: 2 teams × 8 modes = 16
+COIFFEUR_TOTAL_ROUNDS: int = 16
 
 # Module-level tracker: room_id → {team_value: set[TrumpMode]}
 _played_modes: dict[str, dict[str, set[TrumpMode]]] = {}
@@ -138,11 +138,14 @@ class Coiffeur(BaseVariant):
         if trump_team is None:
             return base_scores
 
-        # Was this mode already played by this team?
-        coiffeur = is_mode_played(state.room_id, trump_team, state.trump_mode)
+        # Coiffeur mode is always doubled (explicit declaration)
+        if state.trump_mode == TrumpMode.COIFFEUR:
+            doubled = dict(base_scores)
+            doubled[trump_team] = base_scores[trump_team] * 2
+            return doubled
 
-        if coiffeur:
-            # Double the trump team's score; opponent score unchanged
+        # Standard coiffeur penalty: double if this mode was already played
+        if is_mode_played(state.room_id, trump_team, state.trump_mode):
             doubled = dict(base_scores)
             doubled[trump_team] = base_scores[trump_team] * 2
             return doubled
@@ -153,6 +156,8 @@ class Coiffeur(BaseVariant):
         """Return True if the current round triggers the Coiffeur doubling."""
         if state.trump_mode is None or state.trump_player_id is None:
             return False
+        if state.trump_mode == TrumpMode.COIFFEUR:
+            return True
         trump_team = state.get_player_team(state.trump_player_id)
         if trump_team is None:
             return False

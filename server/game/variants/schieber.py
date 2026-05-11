@@ -92,13 +92,21 @@ class Schieber(BaseVariant):
         trump_suit = self._get_trump_suit(state)
         trump_mode = state.trump_mode
 
-        # --- Obenabe: no trump, Aces highest ---
-        if trump_mode == TrumpMode.OBENABE:
+        # --- Obenabe / Coiffeur: no trump, Aces highest ---
+        if trump_mode in (TrumpMode.OBENABE, TrumpMode.COIFFEUR):
             return NORMAL_RANK_ORDER.index(card.rank)
 
         # --- Undeufe: no trump, 6s highest ---
         if trump_mode == TrumpMode.UNDEUFE:
             return UNDEUFE_RANK_ORDER.index(card.rank)
+
+        # --- Slalom: alternates Obenabe (even tricks) / Undeufe (odd tricks) ---
+        if trump_mode == TrumpMode.SLALOM:
+            trick_index = len(state.completed_tricks)
+            if trick_index % 2 == 0:
+                return NORMAL_RANK_ORDER.index(card.rank)
+            else:
+                return UNDEUFE_RANK_ORDER.index(card.rank)
 
         # --- Suit trump modes ---
         if trump_suit and card.suit == trump_suit:
@@ -166,8 +174,14 @@ class Schieber(BaseVariant):
         if trump_mode == TrumpMode.UNDEUFE:
             return UNDEUFE_CARD_POINTS[card.rank]
 
-        # Obenabe or no trump mode set: use base points
-        if trump_mode == TrumpMode.OBENABE or trump_suit is None:
+        if trump_mode == TrumpMode.SLALOM:
+            trick_index = len(state.completed_tricks)
+            if trick_index % 2 == 1:
+                return UNDEUFE_CARD_POINTS[card.rank]
+            return BASE_CARD_POINTS[card.rank]
+
+        # Obenabe, Coiffeur, or no trump mode set: use base points
+        if trump_mode in (TrumpMode.OBENABE, TrumpMode.COIFFEUR) or trump_suit is None:
             return BASE_CARD_POINTS[card.rank]
 
         # Suit trump

@@ -18,12 +18,14 @@
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const SUIT_ICONS = {
-  Eichel:  '🌰',
-  Schilte: '🛡️',
-  Schelle: '🔔',
-  Rose:    '🌹',
-  Obenabe: '▲',
-  Undeufe: '▼',
+  Eichel:   '🌰',
+  Schilte:  '🛡️',
+  Schelle:  '🔔',
+  Rose:     '🌹',
+  Obenabe:  '▲',
+  Undeufe:  '▼',
+  Slalom:   '⛷️',
+  Coiffeur: '💈',
 };
 
 const SUIT_SYMBOLS = {
@@ -34,12 +36,14 @@ const SUIT_SYMBOLS = {
 };
 
 const TRUMP_MODES = [
-  { key: 'Eichel',  label: 'Eichel',  icon: '🌰' },
-  { key: 'Schilte', label: 'Schilte', icon: '🛡️' },
-  { key: 'Schelle', label: 'Schelle', icon: '🔔' },
-  { key: 'Rose',    label: 'Rose',    icon: '🌹' },
-  { key: 'Obenabe', label: 'Obenabe', icon: '▲' },
-  { key: 'Undeufe', label: 'Undeufe', icon: '▼' },
+  { key: 'Eichel',   label: 'Eichel',   icon: '🌰' },
+  { key: 'Schilte',  label: 'Schilte',  icon: '🛡️' },
+  { key: 'Schelle',  label: 'Schelle',  icon: '🔔' },
+  { key: 'Rose',     label: 'Rose',     icon: '🌹' },
+  { key: 'Obenabe',  label: 'Obenabe',  icon: '▲' },
+  { key: 'Undeufe',  label: 'Undeufe',  icon: '▼' },
+  { key: 'Slalom',   label: 'Slalom',   icon: '⛷️' },
+  { key: 'Coiffeur', label: 'Coiffeur', icon: '💈' },
 ];
 
 const DEFAULT_TRICK_CLEAR_DELAY_MS = 2000;
@@ -360,7 +364,7 @@ function renderTrump() {
     return;
   }
   const mode = gameState.trump_mode;
-  const isSuit = !['Obenabe', 'Undeufe'].includes(mode);
+  const isSuit = !['Obenabe', 'Undeufe', 'Slalom', 'Coiffeur'].includes(mode);
   const imgHtml = isSuit
     ? `<img src="/static/assets/color/${encodeURIComponent(mode)}.png" alt="${escHtml(mode)}"
             style="width:28px;height:28px;object-fit:contain;vertical-align:middle"
@@ -443,7 +447,8 @@ function showTrumpPicker() {
       <div class="trump-options">
         ${TRUMP_MODES.map(m => {
           const imgSrc = `/static/assets/color/${encodeURIComponent(m.key)}.png`;
-          const icon = m.key === 'Obenabe' || m.key === 'Undeufe'
+          const noImg = ['Obenabe', 'Undeufe', 'Slalom', 'Coiffeur'].includes(m.key);
+          const icon = noImg
             ? `<span class="trump-option-icon">${m.icon}</span>`
             : `<img src="${imgSrc}" alt="${m.label}"
                     style="width:56px;height:56px;object-fit:contain"
