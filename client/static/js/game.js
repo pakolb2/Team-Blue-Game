@@ -425,12 +425,21 @@ function showTrumpPicker() {
   let overlay = document.getElementById('trump-picker');
   if (overlay) return; // already shown
 
+  const me = gameState.players.find(p => p.id === myPlayerId);
+  const handHTML = (me && me.hand)
+    ? me.hand.map(card => `
+        <div class="card-wrap trump-preview-card">
+          ${buildCardHTML(card, ['not-turn'])}
+        </div>`).join('')
+    : '';
+
   overlay = document.createElement('div');
   overlay.id = 'trump-picker';
   overlay.className = 'trump-picker';
   overlay.innerHTML = `
-    <div class="trump-picker-box">
+    <div class="trump-picker-box trump-picker-box--wide">
       <div class="trump-picker-title">Choose Trump</div>
+      <div class="trump-picker-hand">${handHTML}</div>
       <div class="trump-options">
         ${TRUMP_MODES.map(m => {
           const imgSrc = `/static/assets/color/${encodeURIComponent(m.key)}.png`;

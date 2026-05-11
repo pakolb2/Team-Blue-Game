@@ -560,6 +560,29 @@ h1, h2, h3 { font-family: var(--font-display); font-weight: 700; letter-spacing:
   animation: slideUp .25s cubic-bezier(.34,1.56,.64,1);
 }
 
+.trump-picker-box--wide {
+  width: min(720px, 96vw);
+}
+
+.trump-picker-hand {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: .35rem;
+  margin-bottom: 1.25rem;
+  padding: .75rem;
+  background: rgba(0,0,0,.2);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255,255,255,.06);
+}
+
+.trump-preview-card .card {
+  width: 62px;
+  height: 90px;
+  font-size: .7rem;
+  cursor: default;
+}
+
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(24px); }
   to   { opacity: 1; transform: translateY(0); }
