@@ -448,14 +448,14 @@ function showTrumpPicker() {
         ${TRUMP_MODES.map(m => {
           const imgSrc = `/static/assets/color/${encodeURIComponent(m.key)}.png`;
           const noImg = ['Obenabe', 'Undeufe', 'Slalom', 'Coiffeur'].includes(m.key);
-          const icon = noImg
-            ? `<span class="trump-option-icon">${m.icon}</span>`
+          const inner = noImg
+            ? `<span style="font-size:3.5rem;line-height:1">${m.icon}</span>`
             : `<img src="${imgSrc}" alt="${m.label}"
-                    style="width:150px;height:150px;object-fit:contain;display:block;margin:auto"
-                    onerror="this.outerHTML='<span class=\\'trump-option-icon\\'>${m.icon}</span>'" />`;
+                    style="width:100%;height:100%;object-fit:contain"
+                    onerror="this.outerHTML='<span style=\\'font-size:3.5rem;line-height:1\\'>${m.icon}</span>'" />`;
           return `
             <div class="trump-option" data-mode="${m.key}">
-              ${icon}
+              <div class="trump-option-icon-wrap">${inner}</div>
               <span class="trump-option-label">${m.label}</span>
             </div>`;
         }).join('')}
