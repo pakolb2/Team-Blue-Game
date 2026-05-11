@@ -4,13 +4,37 @@
 This is the offical repository for our Project
 (if you wan to test stuff f.e with git, please use the repository of the lecture! a-purrfect-story) 
 
-to run the whole program: 
+## Run locally
 
+```bash
 cd TEAM-BLUE-GAME
-python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate (can be sxipped if you dont want to create an extra env)
+python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r server/requirements.txt
-pytest                                             # 470 tests should pass
+pytest                                             # tests should pass
 uvicorn server.main:app --reload                  # open http://localhost:8000
+```
+
+## Live website
+
+The game is hosted for free on Render:
+**https://team-blue-game.onrender.com**
+
+> Note: the server sleeps after 15 minutes of inactivity. The first person to open the link may need to wait ~30 seconds for it to wake up.
+
+## Updating the website
+
+Every push to the `main` branch triggers an automatic redeploy on Render.
+
+**To update:**
+1. Make your changes locally and commit them
+2. Push to GitHub:
+   ```bash
+   git push origin main
+   ```
+3. Render will automatically detect the new commit and redeploy (takes ~2 minutes)
+
+To monitor the deploy or trigger a manual redeploy:
+https://dashboard.render.com/web/srv-d8147jv7f7vs73db9cug
 
 
 
