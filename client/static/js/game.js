@@ -359,11 +359,17 @@ function renderTrump() {
     el.innerHTML = '<span class="trump-badge">Choosing trump…</span>';
     return;
   }
-  const icon = SUIT_ICONS[gameState.trump_mode] || '?';
+  const mode = gameState.trump_mode;
+  const isSuit = !['Obenabe', 'Undeufe'].includes(mode);
+  const imgHtml = isSuit
+    ? `<img src="/static/assets/color/${encodeURIComponent(mode)}.png" alt="${escHtml(mode)}"
+            style="width:28px;height:28px;object-fit:contain;vertical-align:middle"
+            onerror="this.outerHTML='<span class=\\'trump-icon\\'>${SUIT_ICONS[mode] || '?'}</span>'" />`
+    : `<span class="trump-icon">${SUIT_ICONS[mode] || '?'}</span>`;
   el.innerHTML = `
     <span class="trump-badge">
-      <span class="trump-icon">${icon}</span>
-      ${escHtml(gameState.trump_mode)}
+      ${imgHtml}
+      ${escHtml(mode)}
     </span>
   `;
 }
@@ -426,12 +432,19 @@ function showTrumpPicker() {
     <div class="trump-picker-box">
       <div class="trump-picker-title">Choose Trump</div>
       <div class="trump-options">
-        ${TRUMP_MODES.map(m => `
-          <div class="trump-option" data-mode="${m.key}">
-            <span class="trump-option-icon">${m.icon}</span>
-            <span class="trump-option-label">${m.label}</span>
-          </div>
-        `).join('')}
+        ${TRUMP_MODES.map(m => {
+          const imgSrc = `/static/assets/color/${encodeURIComponent(m.key)}.png`;
+          const icon = m.key === 'Obenabe' || m.key === 'Undeufe'
+            ? `<span class="trump-option-icon">${m.icon}</span>`
+            : `<img src="${imgSrc}" alt="${m.label}"
+                    style="width:56px;height:56px;object-fit:contain"
+                    onerror="this.outerHTML='<span class=\\'trump-option-icon\\'>${m.icon}</span>'" />`;
+          return `
+            <div class="trump-option" data-mode="${m.key}">
+              ${icon}
+              <span class="trump-option-label">${m.label}</span>
+            </div>`;
+        }).join('')}
       </div>
     </div>
   `;
