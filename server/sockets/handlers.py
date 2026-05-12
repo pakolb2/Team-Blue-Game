@@ -164,6 +164,7 @@ async def handle_event(
         Event.LIST_ROOMS:   _handle_list_rooms,
         Event.ADD_BOT:       _handle_add_bot,
         Event.REMOVE_BOT:    _handle_remove_bot,
+        Event.RETRACT_TRUMP: _handle_retract_trump,
         Event.MOVE_SEAT:     _handle_move_seat,
         Event.REQUEST_SWAP:  _handle_request_swap,
         Event.ACCEPT_SWAP:   _handle_accept_swap,
@@ -589,6 +590,25 @@ async def _run_bot_turns_with_delay(
         )
     finally:
         _active_bot_runs.discard(room_id)
+
+
+async def _handle_retract_trump(
+    websocket: WebSocket,
+    player_id: str,
+    data: dict,
+    manager: RoomManager,
+    connections: ConnectionManager,
+) -> None:
+    room_id = data.get("room_id", "").strip().upper()
+    if not room_id:
+        raise ValueError("room_id is required.")
+
+    manager.retract_trump(room_id, player_id)
+
+    await connections.broadcast_state(
+        room_id, manager,
+        lambda s, pid: state_updated_msg(s, pid),
+    )
 
 
 async def _handle_list_rooms(

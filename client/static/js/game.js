@@ -60,6 +60,17 @@ let myPlayerId = null;    // this client's player ID
 let roomId = null;        // current room ID
 let selectedCard = null;  // card the player has clicked (pending play)
 
+// Custom hand order: array of {suit, rank} objects; null = server order
+let customHandOrder = null;
+let lastRoundNumber = null;
+
+// Drag-to-sort state
+let dragSrcKey = null; // "suit_rank" of the card being dragged
+
+// Rank order for auto-sort (low → high)
+const RANK_AUTO_ORDER = ['6','7','8','9','10','Under','Ober','König','A'];
+const SUIT_AUTO_ORDER = ['Eichel','Rose','Schelle','Schilte'];
+
 // Temporary visual state. The engine clears current_trick immediately after a
 // trick is scored, so the client keeps the completed trick visible from the
 // trick_complete event until the pacing pause expires.
@@ -99,6 +110,8 @@ function initGame(pid, rid) {
 function onGameStarted(data) {
   gameState = data.state;
   selectedCard = null;
+  customHandOrder = null;
+  lastRoundNumber = gameState.round_number;
   clearTrickDisplayOverride(false);
   clearRoundCountdown();
   render();
@@ -106,8 +119,16 @@ function onGameStarted(data) {
 }
 
 function onStateUpdated(data) {
+  const prevPhase = gameState ? gameState.phase : null;
   gameState = data.state;
   selectedCard = null;
+
+  // Reset custom hand order when a new round begins
+  if (gameState.round_number !== lastRoundNumber) {
+    customHandOrder = null;
+    lastRoundNumber = gameState.round_number;
+  }
+
   clearTrickDisplayOverride(false);
   if (gameState.phase !== 'scoring') clearRoundCountdown();
   render();
@@ -279,14 +300,17 @@ function renderMyHand() {
   const isMyTurn = gameState.current_player_id === myPlayerId
                    && gameState.phase === 'playing';
 
-  handEl.innerHTML = me.hand.map(card => {
+  const ordered = getOrderedHand(me.hand);
+
+  handEl.innerHTML = ordered.map(card => {
     const isSelected = selectedCard &&
       selectedCard.suit === card.suit && selectedCard.rank === card.rank;
     const extraClasses = [
       isMyTurn ? 'playable' : 'not-turn',
       isSelected ? 'selected' : '',
     ];
-    return `<div class="card-wrap" data-suit="${card.suit}" data-rank="${card.rank}">
+    return `<div class="card-wrap" draggable="true"
+                 data-suit="${card.suit}" data-rank="${card.rank}">
       ${buildCardHTML(card, extraClasses)}
     </div>`;
   }).join('');
@@ -295,11 +319,42 @@ function renderMyHand() {
   if (isMyTurn) {
     handEl.querySelectorAll('.card-wrap').forEach(wrap => {
       wrap.querySelector('.card').addEventListener('click', () => {
-        const suit = wrap.dataset.suit;
-        const rank = wrap.dataset.rank;
-        onCardClick(suit, rank);
+        onCardClick(wrap.dataset.suit, wrap.dataset.rank);
       });
     });
+  }
+
+  // Drag-to-sort
+  attachDragSort(handEl, me.hand);
+
+  // Show/hide "Change Trump" button
+  renderChangeTrumpBtn();
+}
+
+function renderChangeTrumpBtn() {
+  const existing = document.getElementById('change-trump-btn');
+  const show = gameState.phase === 'playing'
+    && gameState.trump_player_id === myPlayerId
+    && gameState.completed_tricks_count === 0
+    && gameState.current_trick
+    && gameState.current_trick.entries.length === 0;
+
+  if (show && !existing) {
+    const handEl = document.querySelector('.my-hand');
+    if (!handEl) return;
+    const btn = document.createElement('button');
+    btn.id = 'change-trump-btn';
+    btn.className = 'btn btn-secondary btn-sm';
+    btn.style.cssText = 'position:absolute;top:.4rem;right:.5rem;opacity:.85;font-size:.75rem;padding:.3rem .7rem';
+    btn.textContent = 'Change Trump';
+    btn.addEventListener('click', retractTrump);
+    const bottom = handEl.closest('.game-bottom');
+    if (bottom) {
+      bottom.style.position = 'relative';
+      bottom.appendChild(btn);
+    }
+  } else if (!show && existing) {
+    existing.remove();
   }
 }
 
@@ -430,13 +485,24 @@ function showTrumpPicker() {
   if (overlay) return; // already shown
 
   const me = gameState.players.find(p => p.id === myPlayerId);
-  const hand = (me && me.hand) ? me.hand : [];
-  const makeCard = card => `<div class="card-wrap trump-preview-card">${buildCardHTML(card, ['not-turn'])}</div>`;
+  const rawHand = (me && me.hand) ? me.hand : [];
+
+  // Auto-sort on first display; preserve custom order on retract
+  if (!customHandOrder) {
+    customHandOrder = autoSortHand(rawHand);
+  }
+  const hand = getOrderedHand(rawHand);
+
+  const makeCard = card =>
+    `<div class="card-wrap trump-preview-card" draggable="true"
+          data-suit="${card.suit}" data-rank="${card.rank}">
+       ${buildCardHTML(card, ['not-turn'])}
+     </div>`;
   const row1 = hand.slice(0, 5).map(makeCard).join('');
   const row2 = hand.slice(5).map(makeCard).join('');
   const handHTML = hand.length ? `
-    <div class="trump-hand-row">${row1}</div>
-    <div class="trump-hand-row trump-hand-row--bottom">${row2}</div>
+    <div class="trump-hand-row" id="trump-hand-row1">${row1}</div>
+    <div class="trump-hand-row trump-hand-row--bottom" id="trump-hand-row2">${row2}</div>
   ` : '';
 
   overlay = document.createElement('div');
@@ -445,7 +511,7 @@ function showTrumpPicker() {
   overlay.innerHTML = `
     <div class="trump-picker-box trump-picker-box--wide">
       <div class="trump-picker-title">Choose Trump</div>
-      <div class="trump-picker-hand">${handHTML}</div>
+      <div class="trump-picker-hand" id="trump-picker-hand">${handHTML}</div>
       <div class="trump-options">
         ${TRUMP_MODES.map(m => {
           const imgSrc = `/static/assets/color/${encodeURIComponent(m.key)}.png`;
@@ -473,6 +539,10 @@ function showTrumpPicker() {
   });
 
   document.body.appendChild(overlay);
+
+  // Drag-to-sort in picker
+  const pickerHand = overlay.querySelector('#trump-picker-hand');
+  if (pickerHand) attachDragSort(pickerHand, rawHand, () => refreshTrumpPickerHand(rawHand));
 }
 
 function hideTrumpPicker() {
@@ -486,6 +556,91 @@ function chooseTrump(mode) {
     player_id: myPlayerId,
     trump_mode: mode,
   });
+}
+
+function retractTrump() {
+  socket.send('retract_trump', {
+    room_id: roomId,
+    player_id: myPlayerId,
+  });
+}
+
+// Auto-sort a hand by suit then rank
+function autoSortHand(hand) {
+  return [...hand].sort((a, b) => {
+    const si = SUIT_AUTO_ORDER.indexOf(a.suit) - SUIT_AUTO_ORDER.indexOf(b.suit);
+    if (si !== 0) return si;
+    return RANK_AUTO_ORDER.indexOf(a.rank) - RANK_AUTO_ORDER.indexOf(b.rank);
+  });
+}
+
+// Return hand cards in custom order; fall back to original order
+function getOrderedHand(hand) {
+  if (!customHandOrder) return [...hand];
+  const inHand = new Set(hand.map(c => `${c.suit}_${c.rank}`));
+  const ordered = customHandOrder.filter(c => inHand.has(`${c.suit}_${c.rank}`));
+  const orderedKeys = new Set(ordered.map(c => `${c.suit}_${c.rank}`));
+  const remaining = hand.filter(c => !orderedKeys.has(`${c.suit}_${c.rank}`));
+  return [...ordered, ...remaining];
+}
+
+// Attach HTML5 drag-to-sort to card-wraps inside a container
+function attachDragSort(container, hand, onReorder) {
+  container.querySelectorAll('.card-wrap[draggable]').forEach(wrap => {
+    wrap.addEventListener('dragstart', e => {
+      dragSrcKey = `${wrap.dataset.suit}_${wrap.dataset.rank}`;
+      wrap.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    wrap.addEventListener('dragend', () => {
+      wrap.classList.remove('dragging');
+      container.querySelectorAll('.card-wrap').forEach(w => w.classList.remove('drag-over'));
+    });
+    wrap.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      container.querySelectorAll('.card-wrap').forEach(w => w.classList.remove('drag-over'));
+      wrap.classList.add('drag-over');
+    });
+    wrap.addEventListener('drop', e => {
+      e.preventDefault();
+      const targetKey = `${wrap.dataset.suit}_${wrap.dataset.rank}`;
+      if (!dragSrcKey || dragSrcKey === targetKey) return;
+
+      const ordered = getOrderedHand(hand);
+      const srcIdx = ordered.findIndex(c => `${c.suit}_${c.rank}` === dragSrcKey);
+      const tgtIdx = ordered.findIndex(c => `${c.suit}_${c.rank}` === targetKey);
+      if (srcIdx === -1 || tgtIdx === -1) return;
+
+      const srcCard = ordered[srcIdx];
+      ordered.splice(srcIdx, 1);
+      // After removing srcIdx, adjust tgtIdx if target was after source
+      const adjTgt = srcIdx < tgtIdx ? tgtIdx - 1 : tgtIdx;
+      ordered.splice(adjTgt, 0, srcCard);
+      customHandOrder = ordered;
+      dragSrcKey = null;
+
+      if (onReorder) onReorder();
+      else renderMyHand();
+    });
+  });
+}
+
+function refreshTrumpPickerHand(rawHand) {
+  const hand = getOrderedHand(rawHand);
+  const makeCard = card =>
+    `<div class="card-wrap trump-preview-card" draggable="true"
+          data-suit="${card.suit}" data-rank="${card.rank}">
+       ${buildCardHTML(card, ['not-turn'])}
+     </div>`;
+
+  const row1El = document.getElementById('trump-hand-row1');
+  const row2El = document.getElementById('trump-hand-row2');
+  if (row1El) row1El.innerHTML = hand.slice(0, 5).map(makeCard).join('');
+  if (row2El) row2El.innerHTML = hand.slice(5).map(makeCard).join('');
+
+  const pickerHand = document.getElementById('trump-picker-hand');
+  if (pickerHand) attachDragSort(pickerHand, rawHand, () => refreshTrumpPickerHand(rawHand));
 }
 
 // ─── Trick complete flash ─────────────────────────────────────────────────────

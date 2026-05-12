@@ -400,6 +400,10 @@ class RoomManager:
         self._on_trump_chosen(room_id, engine)
         return state
 
+    def retract_trump(self, room_id: str, player_id: str) -> GameState:
+        engine = self._get_engine_or_raise(room_id)
+        return engine.retract_trump(player_id)
+
     def play_card(self, room_id: str, player_id: str, card: Card) -> GameState:
         """
         Apply exactly one explicit card play.

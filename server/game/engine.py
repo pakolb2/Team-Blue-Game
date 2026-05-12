@@ -240,6 +240,20 @@ class GameEngine:
     # Client-safe state view
     # ------------------------------------------------------------------
 
+    def retract_trump(self, player_id: str) -> GameState:
+        if self._state.phase != GamePhase.PLAYING:
+            raise ValueError("Can only retract trump during the PLAYING phase.")
+        if self._state.trump_player_id != player_id:
+            raise ValueError("Only the trump chooser can retract trump.")
+        if self._state.current_trick.entries or self._state.completed_tricks:
+            raise ValueError("Cannot retract trump after cards have been played.")
+        self._state = self._state.model_copy(update={
+            "trump_mode": None,
+            "phase": GamePhase.TRUMP_SELECT,
+            "current_player_id": self._state.trump_player_id,
+        })
+        return self._state
+
     def get_state_for(self, player_id: str) -> GameState:
         """
         Return a copy of GameState safe to send to `player_id`.
