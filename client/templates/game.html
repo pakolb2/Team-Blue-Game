@@ -159,14 +159,35 @@
       <div class="panel-title">Score</div>
       <div class="scoreboard" id="scoreboard"></div>
     </div>
+
     <div class="panel">
       <div class="panel-title">Trump</div>
-      <div class="trump-display" id="trump-display"><span class="trump-badge" style="opacity:.4">—</span></div>
+      <div class="trump-display" id="trump-display">
+        <span class="trump-badge" style="opacity:.4">—</span>
+      </div>
     </div>
-    <div class="panel" style="flex:1">
+
+    <div class="panel">
+      <div class="panel-title">Round</div>
+      <div id="round-count"
+           style="font-family:var(--font-display);font-size:1.75rem;font-weight:700;color:var(--cream-100);text-align:center;padding:.5rem 0">
+        1
+      </div>
+    </div>
+
+    <div class="panel">
       <div class="panel-title">Tricks</div>
-      <div id="tricks-count" style="font-family:var(--font-display);font-size:1.75rem;font-weight:700;color:var(--cream-100);text-align:center;padding:.5rem 0">
+      <div id="tricks-count"
+           style="font-family:var(--font-display);font-size:1.75rem;font-weight:700;color:var(--cream-100);text-align:center;padding:.5rem 0">
         0 / 9
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1">
+      <div class="panel-title">Win condition</div>
+      <div style="text-align:center;color:var(--cream-300);line-height:1.5">
+        First team to reach<br>
+        <span style="color:var(--gold-accent);font-weight:700">1000 points</span>
       </div>
     </div>
   </aside>
@@ -433,6 +454,11 @@
     if (!gameState) return;
     const el = document.getElementById('tricks-count');
     if (el) el.textContent = `${gameState.completed_tricks_count} / 9`;
+    
+    const roundEl = document.getElementById('round-count');
+    if (roundEl && gameState) {
+      roundEl.textContent = String((gameState.round_number ?? 0) + 1);
+    }
   }
 
   function escHtmlLobby(str) {
