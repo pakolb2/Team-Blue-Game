@@ -208,6 +208,15 @@ function renderSeats() {
   }
 
   const me = ordered[0];
+
+  const mySeatEl = document.getElementById('my-seat-label');
+  if (mySeatEl && me) {
+    const isMyTurn = gameState.current_player_id === myPlayerId;
+    const myTeamCls = me.team === 'team_a' ? 'seat-team-a' : 'seat-team-b';
+
+    mySeatEl.className = `seat ${myTeamCls} ${isMyTurn ? 'seat-active' : ''}`;
+  }
+  
   const myNameEl = document.getElementById('my-name');
   if (myNameEl && me) {
     myNameEl.innerHTML = `

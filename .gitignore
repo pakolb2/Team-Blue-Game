@@ -8,8 +8,23 @@ __pycache__/
 *.pyo
 *.pyd
 
-# Test / coverage
+# All pycache stuff
+server/__pycache__/
+server/bots/__pycache__/
+server/game/__pycache__/
+server/game/variants/__pycache__/
+server/rooms/__pycache__/
+server/shared/__pycache__/
+server/sockets/__pycache__/
+
+tests/__pycache__/
+tests/test_variants/__pycache__/
+
+bots/__pycache__/
 .pytest_cache/
+
+
+# Test / coverage
 .coverage
 htmlcov/
 
