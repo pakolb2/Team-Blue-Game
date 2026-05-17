@@ -275,8 +275,8 @@
         </div>
         <div class="seat-actions">
           ${currentPlayerInRoom(players) ? `<button class="btn btn-secondary btn-sm" data-action="move" data-seat="${seatIndex}">Move here</button>` : ''}
-          <button class="btn btn-secondary btn-sm" data-action="bot-random" data-seat="${seatIndex}">Random Bot</button>
-          <button class="btn btn-secondary btn-sm" data-action="bot-rule" data-seat="${seatIndex}">Rule Bot</button>
+          <button class="btn btn-secondary btn-sm" data-action="bot-random" data-seat="${seatIndex}">Easy bot</button>
+          <button class="btn btn-secondary btn-sm" data-action="bot-rule" data-seat="${seatIndex}">Difficult bot</button>
         </div>
       `;
     } else {
@@ -405,7 +405,7 @@
   });
 
   socket.on('trick_complete', (data) => {
-    logEvent(`Trick → ${data.winner_id} (+${data.points}pts)`);
+    logEvent(`Trick → ${playerNameById(gameState.players, data.winner_id)} (+${data.points}pts)`);
     setTimeout(updateTricksCount, 0);
   });
 

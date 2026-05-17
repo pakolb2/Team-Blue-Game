@@ -299,7 +299,7 @@ class RoomManager:
             raise ValueError(f"Cannot add bots to room '{room_id}': game already started.")
 
         while len(room.players) < room.max_players:
-            room = self._add_bot_with_class(room_id, bot_class, "Bot")
+            room = self._add_bot_with_class(room_id, bot_class, "Difficult bot")
         return room
 
     def _add_bot_with_class(
@@ -341,9 +341,9 @@ class RoomManager:
         if room.is_active:
             raise ValueError(f"Cannot add bot to room '{room_id}': game already started.")
         if bot_type == "random":
-            return self._add_bot_with_class(room_id, RandomBot, "Random Bot", seat_index)
+            return self._add_bot_with_class(room_id, RandomBot, "Easy bot", seat_index)
         if bot_type == "rule_based":
-            return self._add_bot_with_class(room_id, RuleBasedBot, "Rule Bot", seat_index)
+            return self._add_bot_with_class(room_id, RuleBasedBot, "Difficult bot", seat_index)
         raise ValueError(f"Unknown bot type: {bot_type}")
 
     def remove_bot(self, room_id: str, bot_player_id: str) -> Room:

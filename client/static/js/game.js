@@ -145,7 +145,7 @@ function onTrickComplete(data) {
   const winnerId = data.winner_id;
   const winner = gameState.players.find(p => p.id === winnerId);
   if (winner) {
-    showTrickFlash(`${winner.id === myPlayerId ? 'You win' : winner.id + ' wins'} the trick (+${data.points}pts)`);
+    showTrickFlash(`${winner.id === myPlayerId ? 'You win' : (winner.name || winner.id) + ' wins'} the trick (+${data.points}pts)`);
   }
 
   trickClearTimer = setTimeout(() => {
@@ -216,7 +216,7 @@ function renderSeats() {
 
     mySeatEl.className = `seat ${myTeamCls} ${isMyTurn ? 'seat-active' : ''}`;
   }
-  
+
   const myNameEl = document.getElementById('my-name');
   if (myNameEl && me) {
     myNameEl.innerHTML = `
